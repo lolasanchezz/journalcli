@@ -1,23 +1,54 @@
 package main
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"os"
+	"time"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
+var docStyle = lipgloss.NewStyle().
+	Margin(1, 2).
+	PaddingTop(2).
+	PaddingLeft(4).
+	Align(lipgloss.Center)
+
 // will take in a password and store the hash in a config file - if no such variable exists, offer to make a new one. the password will
-// be the key to decrypt the file with the journal entries. a password is only required to read the past entries, not current.
+// be the key to decrypt the file with the journal entries. a password is only required to read the past entries, not current
 type conf struct {
 	JournalHash string `json:"JournalHash"`
 }
+
+// setting up the list part
+type picking struct {
+	choices []string
+	cursor  int
+}
+
+// typing entries part
+type entryWriting struct {
+	textarea textarea.Model
+}
+
+type data struct { //json struct for single entry
+	msg  string
+	date time.Time
+}
+
+// TODO: put all the pwsd options in their own struct
 type model struct {
 	//entering password part
 
@@ -27,18 +58,28 @@ type model struct {
 	pswdUnhashed string // correct password entered in by user (real password)
 	pswdWrong    bool   // just showing whether entered in password is incorrect (temporary flash "wrong! in header")
 	errMsg       error  //for passing along errors to stdout
-	textInput    textinput.Model
-	config       conf
-	debug        string
+	//general stuff
+	textInput textinput.Model
+	config    conf
+	debug     string
+	action    int
+	//initial list used to select action
+	list  picking
+	entry entryWriting
+	//storing data
+	data []data
 }
 
 func initialModel() model {
 
-	//initaliz
+	//initialize style
+
+	//initalize list!
 
 	ti := textinput.New()
 	ti.CharLimit = 156
 	ti.Width = 20
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return model{
@@ -54,12 +95,14 @@ func initialModel() model {
 		ti.Focus()
 
 		return model{
+
 			textInput:    ti,
 			pswdHash:     "",
 			pswdSet:      false,
 			pswdUnhashed: "",
 			pswdEntered:  false,
 			errMsg:       nil,
+			action:       0,
 		}
 
 	} else if err != nil {
@@ -92,6 +135,7 @@ func initialModel() model {
 			pswdEntered:  false,
 			config:       config,
 			errMsg:       nil,
+			action:       0,
 		}
 	}
 }
@@ -101,34 +145,108 @@ func (m model) Init() tea.Cmd {
 	return textinput.Blink
 }
 
+// hashing function
+func hash(val string) (string, error) {
+	first := sha256.New()
+	_, err := first.Write([]byte(val))
+	if err != nil {
+		return "", err
+	}
+
+	hash := first.Sum(nil)
+	strHash := hex.EncodeToString(hash[:])
+
+	if err != nil {
+		return "", err
+	}
+	return strHash, nil
+}
+
+// encrypting to put into file
+func Encrypt(key, data []byte) ([]byte, error) {
+	ciph, err := aes.NewCipher(key) //the key used to encrypt stuff!
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(ciph) //wrapping the key in a interface that allows me to encrypt all my data at once
+	if err != nil {
+		return nil, err
+	}
+	nonce := make([]byte, gcm.NonceSize())     //an empty slice that has enough space for the nonce needed to decrypt the data
+	if _, err = rand.Read(nonce); err != nil { //making the actual nonce!
+		return nil, err
+	}
+	ciphertext := gcm.Seal(nonce, nonce, data, nil) //yay!! the final thing
+	return ciphertext, nil
+}
+
+func Decrypt(key, data []byte) ([]entryWriting, error) { //also turns into json object
+	ciph, err := aes.NewCipher(key) //same as before, get the symmetric key
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(ciph) //again, same - get the interface that can encrypt/decrypt large chunks of data
+	if err != nil {
+		return nil, err
+	}
+	nonce, ciphertext := data[:gcm.NonceSize()], data[gcm.NonceSize():] //getting nonce and ciphertext from same data blob
+	deData, err := gcm.Open(nil, nonce, ciphertext, nil)                //decrypting!
+	if err != nil {
+		return nil, err
+	}
+
+	//now decrypting json
+	var entries []entryWriting
+	err = json.Unmarshal(deData, &entries)
+	if err != nil {
+		return nil, err
+	}
+	return entries, nil
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	//writing the part where password hasn't been entered yet
 	var cmd tea.Cmd = nil
+	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+
 	case tea.KeyMsg:
 		switch msg.Type {
+		//general commands
+		case tea.KeyCtrlC:
+			return m, tea.Quit
+		case tea.KeyUp:
+			if m.action == 1 {
+				if m.list.cursor > 0 {
+					m.list.cursor--
+				}
+			}
+		case tea.KeyDown:
+			if m.action == 1 {
+				if m.list.cursor < len(m.list.choices) {
+					m.list.cursor++
+				}
+			}
+		case tea.KeyEsc:
+			if m.action == 2 {
+				m.action = 1
+			}
 
-		//all the stuff that can happen when enter is clicked!!!!!
 		case tea.KeyEnter:
+			//all the stuff that can happen when enter is clicked!!!!!
 
 			//password segment - if password still isn't input
 			if !m.pswdEntered {
 				first := sha256.New()
-				if !m.pswdSet { //hashing what was just entered and putting it in file
-					_, err := first.Write([]byte(m.textInput.Value()))
-					if err != nil {
-						m.errMsg = err
-					}
-
-					hash := first.Sum(nil)
-					strHash := hex.EncodeToString(hash[:])
-
+				if !m.pswdSet {
+					//hashing what was just entered and putting it in file
+					hash, err := hash(m.textInput.Value())
 					if err != nil {
 						m.errMsg = err
 					}
 					m.pswdEntered = true
-					m.pswdHash = strHash
+					m.pswdHash = hash
 
 					//now putting that into the file
 					homeDir, err := os.UserHomeDir()
@@ -138,52 +256,109 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, tea.Quit
 					}
 
-					os.WriteFile((homeDir + "/.jcli.json"), []byte("{\"JournalHash\":\""+strHash+"\"}"), 0644)
-					m.pswdHash = strHash
+					os.WriteFile((homeDir + "/.jcli.json"), []byte("{\"JournalHash\":\""+hash+"\"}"), 0644)
+					m.pswdHash = hash
 					m.pswdUnhashed = m.textInput.Value()
 					m.textInput.Reset()
 					m.textInput.Focus()
 					first.Reset()
 				} else {
-					_, err := first.Write([]byte(m.textInput.Value()))
+					hash, err := hash(m.textInput.Value())
 					if err != nil {
 						m.errMsg = err
 					}
-					hash := first.Sum(nil)
-
-					strHash := hex.EncodeToString(hash[:])
-
-					if strHash != m.pswdHash {
+					if hash != m.pswdHash {
 						m.pswdWrong = true
 						m.textInput.Reset()
 						m.textInput.Focus()
 					} else {
 						m.pswdEntered = true
 						m.pswdUnhashed = m.textInput.Value()
+						m.action = 1
 
+						//now we have to prepare the list!
+						m.list.choices = []string{"write entries", "read entries", "change password", "look at analytics", "settings", "logout"}
+
+						m.list.cursor = 0
+						return m, cmd
 					}
 					first.Reset()
 
 				}
 			}
-		case tea.KeyCtrlC:
-			return m, tea.Quit
+
+			//list part
+			if m.action == 1 {
+				m.action = m.list.cursor + 2
+
+				//setting up each model for when the action is clicked
+				if m.action == 2 { //writing a new entry!
+					m.entry.textarea = textarea.New()
+					m.entry.textarea.Placeholder = "write a new entry here!"
+					m.entry.textarea.Focus()
+					return m, cmd
+				}
+
+			}
+
+			//submitting entry part
+			//so need to load in json at beginning, then keep decoded part in memory,
+			//add entry to json with associated metadata, then WHEN YOU EXIT WRITING,
+			//encode all json and add to file. file will be called
+			// ~/.secrets !!!!
+
+			if m.action == 2 {
+
+			}
+
 		}
 
+	default:
+		if m.action == 2 {
+			if !m.entry.textarea.Focused() {
+				cmd = m.entry.textarea.Focus()
+				cmds = append(cmds, cmd)
+			}
+		}
 	}
 
+	if m.action == 2 {
+		m.entry.textarea, cmd = m.entry.textarea.Update(msg)
+		cmds = append(cmds, cmd)
+		return m, tea.Batch(cmds...)
+	}
 	m.textInput, cmd = m.textInput.Update(msg)
 
 	return m, cmd
 }
 
+func (m picking) list() string {
+	var s string
+	for i, choice := range m.choices {
+
+		// Is the cursor pointing at this choice?
+		cursor := " " // no cursor
+		if m.cursor == i {
+			cursor = ">" // cursor!
+		}
+
+		// Render the row
+		s += fmt.Sprintf("%s %s\n", cursor, choice)
+	}
+	return s
+
+}
+
 func (m model) View() string {
+	var fin string
+	//just some config stuff
 	if m.errMsg != nil {
 		return m.errMsg.Error()
 	}
 	if m.debug != "" {
 		return m.debug
 	}
+	//password segment!!!!!!!!!!!
 	if !m.pswdEntered {
 		var header string
 		if !m.pswdSet {
@@ -195,13 +370,31 @@ func (m model) View() string {
 			header = "Enter in password:"
 		}
 
-		return header + "\n" + m.textInput.View()
+		fin = header + "\n" + m.textInput.View()
+		return docStyle.Render(fin)
 	}
 
 	//password is entered here -> time to get into the actual app!
 
-	return "heres the hash!" + m.pswdHash
+	if m.action == 1 {
 
+		return docStyle.Render(
+			"what would you like to do? \n",
+			m.list.list(),
+		)
+	}
+
+	if m.action == 2 {
+		return docStyle.Render(
+			"write entry here! \n",
+			m.entry.textarea.View(),
+			"\n esc to go back, ctrl + c to quit",
+		)
+	}
+	//writing list part
+
+	//never supposed to end up here
+	return fmt.Sprintf("oops...", m.action)
 }
 
 func main() {
