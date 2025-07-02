@@ -1,11 +1,7 @@
 package main
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,8 +13,6 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
-	"golang.org/x/crypto/scrypt"
-
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -47,8 +41,8 @@ type entryWriting struct {
 }
 
 type jsonEntries struct { //json struct for single entry
-	msg  string
-	date time.Time
+	Msg  string    `json:"Msg"`
+	Date time.Time `json:"Date"`
 }
 
 type viewDat struct {
@@ -75,16 +69,20 @@ type model struct {
 	list  picking
 	entry entryWriting
 	//storing data
-	data []jsonEntries
-	tab  viewDat
+	data        []jsonEntries
+	tab         viewDat
+	secretsPath string
 }
 
-func readFromFile(m model) (n int) {
+//this doesnt work for some reason. will prob delete soon
+/*
+func readFromFile(m *model) (n int) {
 
 	pstEntries, err := os.ReadFile((m.homeDir + "/.secrets"))
+
 	if err != nil {
 		if (errors.Is(err, os.ErrNotExist)) || (len(pstEntries) == 0) {
-			m.debug = "file doesn't exist"
+
 			m.data = []jsonEntries{}
 			return
 		}
@@ -97,6 +95,7 @@ func readFromFile(m model) (n int) {
 	return len(m.data)
 
 }
+*/
 
 func initialModel() model {
 
@@ -132,8 +131,9 @@ func initialModel() model {
 			errMsg:       nil,
 			action:       0,
 			homeDir:      homeDir,
+			secretsPath:  homeDir + "/.secrets",
 		}
-		readFromFile(m)
+
 		return m
 
 	} else if err != nil {
@@ -168,8 +168,9 @@ func initialModel() model {
 			errMsg:       nil,
 			action:       0,
 			homeDir:      homeDir,
+			secretsPath:  homeDir + "/.secrets",
 		}
-		readFromFile(m)
+
 		return m
 
 	}
@@ -178,95 +179,6 @@ func initialModel() model {
 func (m model) Init() tea.Cmd {
 
 	return textinput.Blink
-}
-
-// hashing function
-func hash(val string) (string, error) {
-	first := sha256.New()
-	_, err := first.Write([]byte(val))
-	if err != nil {
-		return "", err
-	}
-
-	hash := first.Sum(nil)
-	strHash := hex.EncodeToString(hash[:])
-
-	return strHash, nil
-}
-
-// aes needs a max 32 byte key and password won't necessarily be that, so this generates such a key
-// with scrypt. will probably end up using this same function for the hash
-func getKey(password, salt []byte) ([]byte, []byte, error) {
-	//if salt wasn't passed in, make a new one!
-	if salt == nil {
-		salt := make([]byte, 32)
-
-		if _, err := rand.Read(salt); err != nil {
-			return nil, nil, err
-		}
-	}
-	key, err := scrypt.Key(password, salt, 1048576, 8, 1, 32) //parameters set by a bunch of recommended numbers regarding encryption
-	// the important one is the 32, which means 32 bytes for aes!
-	if err != nil {
-		return nil, nil, err
-	}
-	return key, salt, nil
-
-}
-
-// encrypting to put into file
-func Encrypt(key, data []byte) ([]byte, error) {
-	key, salt, err := getKey(key, nil)
-	if err != nil {
-		return nil, err
-	}
-	ciph, err := aes.NewCipher(key) //the key used to encrypt stuff!
-	if err != nil {
-		return nil, err
-	}
-	gcm, err := cipher.NewGCM(ciph) //wrapping the key in a interface that allows me to encrypt all my data at once
-	if err != nil {
-		return nil, err
-	}
-	nonce := make([]byte, gcm.NonceSize())     //an empty slice that has enough space for the nonce needed to decrypt the data
-	if _, err = rand.Read(nonce); err != nil { //making the actual nonce!
-		return nil, err
-	}
-	ciphertext := gcm.Seal(nonce, nonce, data, nil) //yay!! the final thing
-	//add salt too!
-	ciphertext = append(ciphertext, salt...)
-	return ciphertext, nil
-}
-
-func Decrypt(key, data []byte) ([]jsonEntries, error) { //also turns into json object
-	salt, data := data[len(data)-32:], data[:len(data)-32] //distinguish salt and data
-
-	key, _, err := getKey(key, salt) //same as before!
-	if err != nil {
-		return nil, err
-	}
-	ciph, err := aes.NewCipher(key) //same as before, get the symmetric key
-	if err != nil {
-		return nil, err
-	}
-	gcm, err := cipher.NewGCM(ciph) //again, same - get the interface that can encrypt/decrypt large chunks of data
-	if err != nil {
-		return nil, err
-	}
-
-	nonce, ciphertext := data[:gcm.NonceSize()], data[gcm.NonceSize():] //getting nonce and ciphertext from same data blob
-	deData, err := gcm.Open(nil, nonce, ciphertext, nil)                //decrypting!
-	if err != nil {
-		return nil, err
-	}
-
-	//now decrypting json
-	var entries []jsonEntries
-	err = json.Unmarshal(deData, &entries)
-	if err != nil {
-		return nil, err
-	}
-	return entries, nil
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -294,7 +206,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case tea.KeyEsc:
-			if m.action == 2 {
+			if m.action == 2 || m.action == 3 {
 				m.action = 1
 			}
 
@@ -304,51 +216,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				//load in data. decrypt it. add most recent entry. encrypt it. put it back
 
 				//decrypting part!
-				home, err := os.UserHomeDir()
+				//since this returns nothing if the file is empty or doesn't exist, we don't have to worry about other error handling
+				tmp, err := takeOutData(m.pswdUnhashed, m.secretsPath)
 				if err != nil {
 					m.errMsg = err
-					return m, nil
 				}
-				data, err := os.ReadFile((home + "/.secrets"))
-				var pastEntries []jsonEntries
-				if err == nil {
-					//data exists
-					//must decrypt data!
-					tmp, err := Decrypt([]byte(m.pswdUnhashed), data)
-					if err != nil {
-						m.errMsg = err
-						return m, nil
-					}
-					pastEntries = append(tmp, jsonEntries{msg: m.entry.textarea.Value(), date: time.Now()})
+				pastEntries := append(tmp, jsonEntries{Msg: m.entry.textarea.Value(), Date: time.Now()})
 
-				} else {
-					//nothing in the file
-					if errors.Is(err, os.ErrNotExist) || len(data) == 0 {
-						//simply just append data to past entries
-						pastEntries = []jsonEntries{
-							{
-								msg:  m.entry.textarea.Value(),
-								date: time.Now(),
-							},
-						}
-						//don't know what happened here
-					} else {
-						m.errMsg = err
-						return m, nil
-					}
-				}
-				fmt.Print(pastEntries)
 				//add past entries for viewing
 				m.data = pastEntries
 				//now must reencrypt
-				newData, err := json.Marshal(pastEntries)
+				err = putInFile(pastEntries, m.pswdUnhashed, m.secretsPath)
 				if err != nil {
 					m.errMsg = err
-					return m, nil
 				}
-				encData, err := Encrypt([]byte(m.pswdUnhashed), newData)
-
-				os.WriteFile((home + "/secrets"), encData, 0644)
 				m.action = 1
 			}
 
@@ -428,19 +309,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				var rows []table.Row
 				columns := []table.Column{{Title: "date written", Width: 50}}
 				//if data hasn't been decrypted yet (if no entry has been written)
-				if n := readFromFile(m); n == 0 { //if no data available
-					rows = []table.Row{{"no entries yet!"}}
-				} else {
-					rows := make([]table.Row, len(m.data))
 
-					for index, obj := range m.data {
-						rows[index] = table.Row{obj.date.Format(time.RFC822)}
+				if newData, err := takeOutData(m.pswdUnhashed, m.secretsPath); len(newData) == 0 { //if no data available
+					if err != nil {
+						m.errMsg = err
+					}
+					rows = []table.Row{{"no entries yet!"}}
+
+				} else {
+					m.data = newData
+					rows = make([]table.Row, len(newData))
+
+					for index, obj := range newData {
+						rows[index] = table.Row{obj.Date.Format(time.RFC822)}
 					}
 				}
 
 				m.tab.table = table.New(
 					table.WithColumns(columns),
 					table.WithRows(rows),
+					table.WithFocused(true),
+					table.WithHeight(7),
 				)
 
 				//rot styling copied from docs
