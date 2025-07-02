@@ -21,7 +21,7 @@ var docStyle = lipgloss.NewStyle().
 	Margin(1, 2).
 	PaddingTop(2).
 	PaddingLeft(4).
-	Align(lipgloss.Center)
+	Align(lipgloss.Left)
 
 // will take in a password and store the hash in a config file - if no such variable exists, offer to make a new one. the password will
 // be the key to decrypt the file with the journal entries. a password is only required to read the past entries, not current
@@ -69,33 +69,10 @@ type model struct {
 	list  picking
 	entry entryWriting
 	//storing data
-	data        []jsonEntries
+
 	tab         viewDat
 	secretsPath string
 }
-
-//this doesnt work for some reason. will prob delete soon
-/*
-func readFromFile(m *model) (n int) {
-
-	pstEntries, err := os.ReadFile((m.homeDir + "/.secrets"))
-
-	if err != nil {
-		if (errors.Is(err, os.ErrNotExist)) || (len(pstEntries) == 0) {
-
-			m.data = []jsonEntries{}
-			return
-		}
-		m.errMsg = err
-	}
-	m.data, err = Decrypt([]byte(m.pswdUnhashed), pstEntries)
-	if err != nil {
-		m.errMsg = err
-	}
-	return len(m.data)
-
-}
-*/
 
 func initialModel() model {
 
@@ -224,13 +201,47 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				pastEntries := append(tmp, jsonEntries{Msg: m.entry.textarea.Value(), Date: time.Now()})
 
 				//add past entries for viewing
-				m.data = pastEntries
+
 				//now must reencrypt
 				err = putInFile(pastEntries, m.pswdUnhashed, m.secretsPath)
 				if err != nil {
 					m.errMsg = err
 				}
 				m.action = 1
+			}
+			//saved new password
+			if m.action == 4 {
+				//have to take old data, reencrypt it with new password, put it back,
+				// then rehash password and put that back too
+				newPswd := m.textInput.Value()
+				if data, err := takeOutData(m.pswdUnhashed, m.homeDir); len(data) != 0 {
+					if err != nil {
+						m.errMsg = err
+						return m, nil
+					}
+					//we know there's data, now we have to reset the password
+					err = putInFile(data, newPswd, m.secretsPath)
+					if err != nil {
+						m.errMsg = err
+						return m, nil
+					}
+				}
+				//now writing pswd hash into file
+				newHash, err := hash(newPswd)
+				m.pswdHash = newHash
+				if err != nil {
+					m.errMsg = err
+					return m, nil
+				}
+				//TODO when more config options are added in, this will have to load in the config file first then change it
+				//to avoid overwriting the rest of the config
+				os.WriteFile((m.homeDir + "/.jcli.json"), []byte("{\"JournalHash\":\""+newHash+"\"}"), 0644)
+				m.pswdUnhashed = newPswd
+
+				//now that that's all done, just return back to user
+				m.textInput.Reset()
+				m.action = 1
+
 			}
 
 		case tea.KeyEnter:
@@ -250,14 +261,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.pswdHash = hash
 
 					//now putting that into the file
-					homeDir, err := os.UserHomeDir()
 
 					if err != nil {
 						m.errMsg = err
 						return m, tea.Quit
 					}
 
-					os.WriteFile((homeDir + "/.jcli.json"), []byte("{\"JournalHash\":\""+hash+"\"}"), 0644)
+					os.WriteFile((m.homeDir + "/.jcli.json"), []byte("{\"JournalHash\":\""+hash+"\"}"), 0644)
 					m.pswdHash = hash
 					m.pswdUnhashed = m.textInput.Value()
 					m.textInput.Reset()
@@ -273,9 +283,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.textInput.Reset()
 						m.textInput.Focus()
 					} else {
+						//password is correct!
 						m.pswdEntered = true
 						m.pswdUnhashed = m.textInput.Value()
 						m.action = 1
+						m.textInput.Reset()
 
 						//now we have to prepare the list!
 						m.list.choices = []string{"write entries", "read entries", "change password", "look at analytics", "settings", "logout"}
@@ -302,6 +314,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.entry.textarea.Focus()
 					return m, cmd
 				}
+				if m.action == 7 {
+					return m, tea.Quit
+				}
 
 			}
 			//set up table here!
@@ -317,7 +332,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					rows = []table.Row{{"no entries yet!"}}
 
 				} else {
-					m.data = newData
+
 					rows = make([]table.Row, len(newData))
 
 					for index, obj := range newData {
@@ -347,7 +362,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			}
 
-		}
+		} //here is where tea.enter ends
 
 	default:
 
@@ -363,7 +378,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	//outside tea.msg here
-	if m.action == 0 {
+	if m.action == 0 || m.action == 4 { //the two options with one line inputs
 		m.textInput, cmd = m.textInput.Update(msg)
 	}
 	if m.action == 2 {
@@ -387,11 +402,11 @@ func (m picking) list() string {
 		// Is the cursor pointing at this choice?
 		cursor := " " // no cursor
 		if m.cursor == i {
-			cursor = ">" // cursor!
+			cursor = "> " // cursor!
 		}
 
 		// Render the row
-		s += fmt.Sprintf("%s %s\n", cursor, choice)
+		s += (cursor + choice + "\n")
 	}
 	return s
 
@@ -443,7 +458,15 @@ func (m model) View() string {
 	if m.action == 3 {
 		return docStyle.Render(m.tab.table.View())
 	}
-	//writing list part
+
+	//resetting password
+	if m.action == 4 {
+		return docStyle.Render(
+			"write new password here: \n",
+			m.textInput.View(),
+			"\n esc to go back, ctrl+s to save",
+		)
+	}
 
 	//never supposed to end up here
 	return fmt.Sprintf("oops...", m.action)
