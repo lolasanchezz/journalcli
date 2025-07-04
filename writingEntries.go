@@ -1,6 +1,8 @@
 package main
 
 import (
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textarea"
@@ -18,12 +20,14 @@ type writing struct {
 
 //for switching between text inputs
 
-func (m *model) writeInit() {
+func (m *model) writeInit() tea.Cmd {
 	//just setting up inputs no biggie
 	m.entryView.titleInput = textinput.New()
 	m.entryView.tagInput = textinput.New()
 	m.entryView.body = textarea.New()
-
+	//formatting
+	m.entryView.titleInput.CharLimit, m.entryView.tagInput.CharLimit = 156, 156
+	m.entryView.titleInput.Width, m.entryView.tagInput.Width = 30, 30
 	//placeholders!
 	m.entryView.titleInput.Placeholder = time.Now().Format(time.RFC822)
 	m.entryView.tagInput.Placeholder = "tags..."
@@ -33,7 +37,7 @@ func (m *model) writeInit() {
 		tmp, err := takeOutData(m.pswdUnhashed, m.secretsPath)
 		if err != nil {
 			m.errMsg = err
-			return
+			return nil
 		}
 		if tmp.readIn == 1 { //means theres something in the file
 			m.entryView.tags = tmp.Tags
@@ -42,6 +46,7 @@ func (m *model) writeInit() {
 		}
 	}
 	m.entryView.titleInput.Focus()
+	return m.entryView.titleInput.Focus()
 }
 
 func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -51,6 +56,8 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.Type {
+		case tea.KeyCtrlC:
+			return m, tea.Quit
 
 		case tea.KeyCtrlS:
 
@@ -58,16 +65,32 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			//decrypting part!
 			//since this returns nothing if the file is empty or doesn't exist, we don't have to worry about other error handling
-			tmp, err := takeOutData(m.pswdUnhashed, m.secretsPath)
-			if err != nil {
-				m.errMsg = err
+
+			if m.data.readIn == 0 {
+				tmp, err := takeOutData(m.pswdUnhashed, m.secretsPath)
+				if err != nil {
+					m.errMsg = err
+				}
+				m.data = tmp
 			}
-			pastEntries := append(tmp.Entries, entry{Msg: m.entry.textarea.Value(), Date: time.Now()})
+
+			//new part - load in json tags, seperate new tags by commas, see if there's any new ones not in json
+			//add those new ones to json, then take tags from entry and add them to the json entry!
+			newTags := strings.Split(m.entryView.tagInput.Value(), ",")
+			unique := slices.Concat(m.data.Tags, newTags)
+
+			titleStr := m.entryView.titleInput.Value()
+			if titleStr == "" {
+				titleStr = m.entryView.titleInput.Placeholder
+			}
+			pastEntries := append(m.data.Entries, entry{Title: titleStr, Msg: m.entryView.body.Value(), Date: time.Now(), Tags: newTags})
 
 			//add past entries for viewing
 			m.data.Entries = pastEntries
+			m.data.Tags = unique
+			m.entryView.tags = unique
 			//now must reencrypt
-			err = putInFile(m.data, m.pswdUnhashed, m.secretsPath)
+			err := putInFile(m.data, m.pswdUnhashed, m.secretsPath)
 			if err != nil {
 				m.errMsg = err
 			}
@@ -76,27 +99,56 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEsc:
 			m.action = 1
 
-		case tea.KeyUp:
+		case tea.KeyLeft:
+
 			if m.entryView.typingIn != 0 {
 				m.entryView.typingIn--
+
 			}
 
-		case tea.KeyDown:
+		case tea.KeyRight:
 			if m.entryView.typingIn != 2 {
 				m.entryView.typingIn++
 			}
 		}
 
-	default:
-		if !m.entry.textarea.Focused() {
-			cmd = m.entry.textarea.Focus()
-			cmds = append(cmds, cmd)
-			m.entry.textarea, cmd = m.entry.textarea.Update(msg)
-			cmds = append(cmds, cmd)
-			return m, tea.Batch(cmds...)
-		} //this is obviously wrong. just need this to compile
+		//the responding text input correlates to whatever the "typing in" int is
 
 	}
+
+	if m.entryView.typingIn == 0 { //on title
+
+		//have to this every time .. //TODO there is definitely a better way
+		m.entryView.tagInput.Blur()
+		m.entryView.body.Blur()
+
+		m.entryView.titleInput.Focus()
+		m.entryView.titleInput, cmd = m.entryView.titleInput.Update(msg)
+		return m, cmd
+	}
+
+	if m.entryView.typingIn == 1 { //on tags
+
+		m.entryView.titleInput.Blur()
+		m.entryView.body.Blur()
+
+		m.entryView.tagInput.Focus()
+		m.entryView.tagInput, cmd = m.entryView.tagInput.Update(msg)
+		return m, cmd
+	}
+
+	if m.entryView.typingIn == 2 { //on body writing
+
+		m.entryView.titleInput.Blur()
+		m.entryView.tagInput.Blur()
+
+		m.entryView.body.Focus()
+		m.entryView.body, cmd = m.entryView.body.Update(msg)
+		cmds = append(cmds, cmd)
+		return m, tea.Batch(cmds...)
+
+	}
+
 	return m, cmd
 
 }
@@ -117,15 +169,19 @@ func (m *model) writingView() string {
 	// line input
 
 	//make tag line rq
-	tags := "["
-	for i, val := range m.entryView.tags {
-		if i == len(m.entryView.tags)-1 {
-			tags += val + "]\n"
-		} else {
-			tags += val + ", "
+	var tags string
+	if len(m.entryView.tags) > 0 {
+		tags = "["
+		for i, val := range m.entryView.tags {
+			if i == len(m.entryView.tags)-1 {
+				tags += val + "]"
+			} else {
+				tags += val + ", "
+			}
 		}
+	} else {
+		tags = "none yet!"
 	}
-
 	return docStyle.Render(
 		"title:",
 		m.entryView.titleInput.View(),
@@ -135,7 +191,7 @@ func (m *model) writingView() string {
 		"\n",
 		"past tags:",
 		tags,
-		"write entry here!",
+		"\nwrite entry below!\n",
 		m.entryView.body.View(),
 		"\n esc to go back, ctrl + c to quit",
 	)

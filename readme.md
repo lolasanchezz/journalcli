@@ -7,8 +7,8 @@ features and todo lists
 
 - writing entries
     - [x] multiline place to write
-    - [ ] option for title - if none provided, just use date
-    - [ ] tagging
+    - [x] option for title - if none provided, just use date
+    - [x] tagging
         - [ ] automatic tagging?
     - [ ] option to throw in different media
 - viewing entries

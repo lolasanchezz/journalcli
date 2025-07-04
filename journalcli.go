@@ -40,8 +40,10 @@ type entryWriting struct {
 	textarea textarea.Model
 }
 type entry struct {
-	Msg  string    `json:"Msg"`
-	Date time.Time `json:"Date"`
+	Title string    `json:"Title"`
+	Msg   string    `json:"Msg"`
+	Date  time.Time `json:"Date"`
+	Tags  []string  `json:"Tags"`
 }
 type jsonEntries struct { //json struct for single entry
 	readIn  int      //initialized to zero, when read in and empty, set to 1 so that we dont have to keep rereading and returning nothing
@@ -176,6 +178,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd = nil
 	var cmds []tea.Cmd
 
+	//start of new code - how it should be
+	if m.action == 2 {
+		return m.writingUpdate(msg)
+	}
+
 	switch msg := msg.(type) {
 
 	case tea.KeyMsg:
@@ -183,6 +190,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		//general commands
 		case tea.KeyCtrlC:
 			return m, tea.Quit
+
 		case tea.KeyUp:
 			if m.action == 1 {
 				if m.list.cursor > 0 {
@@ -391,11 +399,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.action == 0 || m.action == 4 { //the two options with one line inputs
 		m.textInput, cmd = m.textInput.Update(msg)
 	}
+	/**
 	if m.action == 2 {
 		m.entry.textarea, cmd = m.entry.textarea.Update(msg)
 		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
 	}
+	*/
 
 	if m.action == 3 {
 		m.tab.table, cmd = m.tab.table.Update(msg)

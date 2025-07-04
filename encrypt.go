@@ -127,7 +127,7 @@ func takeOutData(password string, path string) (jsonEntries, error) {
 	newData, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return jsonEntries{}, nil
+			return jsonEntries{readIn: 1}, nil
 		}
 		return jsonEntries{}, err
 	}
@@ -136,7 +136,7 @@ func takeOutData(password string, path string) (jsonEntries, error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	decData.readIn = 1 //read in successfully
 	return decData, nil
 
 }
