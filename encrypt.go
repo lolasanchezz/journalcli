@@ -73,41 +73,42 @@ func Encrypt(pswd, data []byte) ([]byte, error) {
 }
 
 // also turns into json object
-func Decrypt(key, data []byte) ([]jsonEntries, error) {
+func Decrypt(key, data []byte) (jsonEntries, error) {
 
 	salt, data := data[len(data)-32:], data[:len(data)-32]
 
 	key, _, err := getKey(key, salt)
 	if err != nil {
-		return nil, err
+		return jsonEntries{}, err
 	}
 
 	blockCipher, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, err
+		return jsonEntries{}, err
 	}
 
 	gcm, err := cipher.NewGCM(blockCipher)
 	if err != nil {
-		return nil, err
+		return jsonEntries{}, err
 	}
 
 	nonce, ciphertext := data[:gcm.NonceSize()], data[gcm.NonceSize():]
 
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return nil, err
+		return jsonEntries{}, err
 	}
 
 	//now decrypting json
-	var entries []jsonEntries
+	var entries jsonEntries
 	err = json.Unmarshal(plaintext, &entries)
 	if err != nil {
-		return nil, err
+		return jsonEntries{}, err
 	}
 	return entries, nil
 }
-func putInFile(data []jsonEntries, password string, path string) error {
+
+func putInFile(data jsonEntries, password string, path string) error {
 	mshData, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -122,13 +123,13 @@ func putInFile(data []jsonEntries, password string, path string) error {
 }
 
 // take in only password, return []jsonEntries
-func takeOutData(password string, path string) ([]jsonEntries, error) {
+func takeOutData(password string, path string) (jsonEntries, error) {
 	newData, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return []jsonEntries{}, nil
+			return jsonEntries{}, nil
 		}
-		return []jsonEntries{}, err
+		return jsonEntries{}, err
 	}
 
 	decData, err := Decrypt([]byte(password), newData)

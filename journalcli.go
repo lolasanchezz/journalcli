@@ -39,14 +39,23 @@ type picking struct {
 type entryWriting struct {
 	textarea textarea.Model
 }
-
-type jsonEntries struct { //json struct for single entry
+type entry struct {
 	Msg  string    `json:"Msg"`
 	Date time.Time `json:"Date"`
+}
+type jsonEntries struct { //json struct for single entry
+	readIn  int      //initialized to zero, when read in and empty, set to 1 so that we dont have to keep rereading and returning nothing
+	Entries []entry  `json:"entries"` //will implement tags tmrw! (today)
+	Tags    []string `json:"tags"`
 }
 
 type viewDat struct {
 	table table.Model
+}
+
+// table viewing
+type item struct {
+	title, desc string
 }
 
 // TODO: put all the pwsd options in their own struct
@@ -64,7 +73,8 @@ type model struct {
 	homeDir string //this just gets used so much might as well
 	config  conf
 	debug   string
-	action  int //what r u doing rn?
+	action  int         //what r u doing rn?
+	data    jsonEntries //LARGE json object in here
 	//initial list used to select action
 	list  picking
 	entry entryWriting
@@ -72,6 +82,9 @@ type model struct {
 
 	tab         viewDat
 	secretsPath string
+
+	//input
+	entryView writing
 }
 
 func initialModel() model {
@@ -198,12 +211,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if err != nil {
 					m.errMsg = err
 				}
-				pastEntries := append(tmp, jsonEntries{Msg: m.entry.textarea.Value(), Date: time.Now()})
+				pastEntries := append(tmp.Entries, entry{Msg: m.entry.textarea.Value(), Date: time.Now()})
 
 				//add past entries for viewing
-
+				m.data.Entries = pastEntries
 				//now must reencrypt
-				err = putInFile(pastEntries, m.pswdUnhashed, m.secretsPath)
+				err = putInFile(m.data, m.pswdUnhashed, m.secretsPath)
 				if err != nil {
 					m.errMsg = err
 				}
@@ -214,7 +227,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				//have to take old data, reencrypt it with new password, put it back,
 				// then rehash password and put that back too
 				newPswd := m.textInput.Value()
-				if data, err := takeOutData(m.pswdUnhashed, m.homeDir); len(data) != 0 {
+				if data, err := takeOutData(m.pswdUnhashed, m.homeDir); len(data.Entries) != 0 {
 					if err != nil {
 						m.errMsg = err
 						return m, nil
@@ -309,10 +322,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				//setting up each model for when the action is clicked
 				if m.action == 2 { //writing a new entry!
-					m.entry.textarea = textarea.New()
-					m.entry.textarea.Placeholder = "write a new entry here!"
-					m.entry.textarea.Focus()
-					return m, cmd
+					m.writeInit()
 				}
 				if m.action == 7 {
 					return m, tea.Quit
@@ -325,7 +335,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				columns := []table.Column{{Title: "date written", Width: 50}}
 				//if data hasn't been decrypted yet (if no entry has been written)
 
-				if newData, err := takeOutData(m.pswdUnhashed, m.secretsPath); len(newData) == 0 { //if no data available
+				if newData, err := takeOutData(m.pswdUnhashed, m.secretsPath); len(newData.Entries) == 0 { //if no data available
 					if err != nil {
 						m.errMsg = err
 					}
@@ -333,9 +343,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				} else {
 
-					rows = make([]table.Row, len(newData))
+					rows = make([]table.Row, len(newData.Entries))
 
-					for index, obj := range newData {
+					for index, obj := range newData.Entries {
 						rows[index] = table.Row{obj.Date.Format(time.RFC822)}
 					}
 				}
@@ -448,11 +458,7 @@ func (m model) View() string {
 	}
 
 	if m.action == 2 {
-		return docStyle.Render(
-			"write entry here! \n",
-			m.entry.textarea.View(),
-			"\n esc to go back, ctrl + c to quit",
-		)
+		return m.writingView()
 	}
 
 	if m.action == 3 {
