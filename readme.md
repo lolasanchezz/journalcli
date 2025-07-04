@@ -3,28 +3,28 @@
 
 features and todo lists
 - encryption
-    [x] encrypt and decrypt entries
+    - [x] encrypt and decrypt entries
 
 - writing entries
-    [x] multiline place to write
-    [] option for title - if none provided, just use date
-    [] tagging
-        [] automatic tagging?
-    [] option to throw in different media
+    - [x] multiline place to write
+    - [ ] option for title - if none provided, just use date
+    - [ ] tagging
+        - [ ] automatic tagging?
+    - [ ] option to throw in different media
 - viewing entries
-    [] be able to load in past entry to edit
-        [] edit..history?
-    [] calendar view
-    [] be able to search through entries based on tags | date
+    - [ ] be able to load in past entry to edit
+    - [ ] edit..history?
+    - [ ] calendar view
+    - [ ] be able to search through entries based on tags | date
 
 - misc.
-    [] be able to change text color, 
-    [] have a default program size (!!)
-    [] implement loading once io is in cmds
+    - [ ] be able to change text color, 
+    - [ ] have a default program size (!!)
+    - [ ] implement loading once io is in cmds
 
 - non-ui
-    [] organize encryption tasks into bubble tea cmds
-    [] make modules more cleanly nested - seperate different actions
-    [] make sure data is stored in memory when unencrypted AND whenever changed. as little decrypting as possible
+    - [ ] organize encryption tasks into bubble tea cmds
+    - [ ] make modules more cleanly nested - seperate different actions
+    - [ ] make sure data is stored in memory when unencrypted AND whenever changed. as little decrypting as possible
 
     
