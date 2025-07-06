@@ -77,10 +77,25 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			//new part - load in json tags, seperate new tags by commas, see if there's any new ones not in json
 			//add those new ones to json, then take tags from entry and add them to the json entry!
 			newTags := strings.Split(m.entryView.tagInput.Value(), ",")
-			unique := slices.Concat(m.data.Tags, newTags)
+			var unique []string
+			if newTags[0] != "" {
+				all := slices.Concat(newTags, m.data.Tags)
+				//getting the unique tags
+				seen := make(map[string]bool)
 
+				for _, v := range all {
+					v = strings.TrimSpace(v)
+					v = strings.ToLower(v)
+					if !seen[v] { //if the string has been seen already in the map
+						seen[v] = true
+						unique = append(unique, v)
+					}
+				}
+			} else {
+				unique = m.data.Tags
+			}
 			titleStr := m.entryView.titleInput.Value()
-			if titleStr == "" {
+			if titleStr == "" { //if no title was entered
 				titleStr = m.entryView.titleInput.Placeholder
 			}
 			pastEntries := append(m.data.Entries, entry{Title: titleStr, Msg: m.entryView.body.Value(), Date: time.Now(), Tags: newTags})
