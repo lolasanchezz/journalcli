@@ -8,9 +8,9 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,6 +22,9 @@ var docStyle = lipgloss.NewStyle().
 	PaddingTop(2).
 	PaddingLeft(4).
 	Align(lipgloss.Left)
+
+// constant for formatting time
+var timeFormat = "Mon Jan 2 3:04pm"
 
 // will take in a password and store the hash in a config file - if no such variable exists, offer to make a new one. the password will
 // be the key to decrypt the file with the journal entries. a password is only required to read the past entries, not current
@@ -49,10 +52,6 @@ type jsonEntries struct { //json struct for single entry
 	readIn  int      //initialized to zero, when read in and empty, set to 1 so that we dont have to keep rereading and returning nothing
 	Entries []entry  `json:"entries"` //will implement tags tmrw! (today)
 	Tags    []string `json:"tags"`
-}
-
-type viewDat struct {
-	table table.Model
 }
 
 // table viewing
@@ -87,17 +86,13 @@ type model struct {
 
 	//input
 	entryView writing
+
+	//ui
+	width  int
+	height int
 }
 
-func initialModel() model {
-
-	//initialize style
-
-	//initalize list!
-
-	ti := textinput.New()
-	ti.CharLimit = 156
-	ti.Width = 20
+func initialModel(args []string) model {
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -105,6 +100,37 @@ func initialModel() model {
 			errMsg: err,
 		}
 	}
+
+	ti := textinput.New()
+	ti.CharLimit = 156
+	ti.Width = 20
+
+	//so that action cna be pre-set when testing so that password doesn't have to be entered
+	if len(os.Args) > 1 { //will HAVE to delete this later just bypasses whole password part
+
+		pswdHash, _ := hash("password")
+		action, _ := strconv.Atoi(args[1])
+		m := model{
+
+			textInput:    ti,
+			pswdHash:     pswdHash,
+			pswdSet:      true,
+			pswdUnhashed: "password",
+			pswdEntered:  true,
+			errMsg:       nil,
+			action:       action,
+			homeDir:      homeDir,
+			secretsPath:  homeDir + "/.secrets",
+			//really just a hack
+			list: picking{choices: []string{"write entries", "read entries", "change password", "look at analytics", "settings", "logout"}, cursor: 0},
+		}
+		if action == 3 {
+			m.readInit()
+		}
+		return m
+
+	}
+
 	file, err := os.Open((homeDir + "/.jcli.json"))
 
 	if errors.Is(err, os.ErrNotExist) { //if file doesn't exist, we know there's no password, so just setting up user to enter their new password
@@ -178,9 +204,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd = nil
 	var cmds []tea.Cmd
 
+	switch msg := msg.(type) {
+
+	case tea.KeyMsg:
+		switch msg.Type {
+		//general commands
+		case tea.KeyCtrlC:
+			return m, tea.Quit
+		}
+	}
 	//start of new code - how it should be
 	if m.action == 2 {
 		return m.writingUpdate(msg)
+	}
+
+	if m.action == 3 {
+		return m.readUpdate(msg)
 	}
 
 	switch msg := msg.(type) {
@@ -339,45 +378,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			//set up table here!
 			if m.action == 3 {
-				var rows []table.Row
-				columns := []table.Column{{Title: "date written", Width: 50}}
-				//if data hasn't been decrypted yet (if no entry has been written)
-
-				if newData, err := takeOutData(m.pswdUnhashed, m.secretsPath); len(newData.Entries) == 0 { //if no data available
-					if err != nil {
-						m.errMsg = err
-					}
-					rows = []table.Row{{"no entries yet!"}}
-
-				} else {
-
-					rows = make([]table.Row, len(newData.Entries))
-
-					for index, obj := range newData.Entries {
-						rows[index] = table.Row{obj.Date.Format(time.RFC822)}
-					}
-				}
-
-				m.tab.table = table.New(
-					table.WithColumns(columns),
-					table.WithRows(rows),
-					table.WithFocused(true),
-					table.WithHeight(7),
-				)
-
-				//rot styling copied from docs
-				s := table.DefaultStyles()
-				s.Header = s.Header.
-					BorderStyle(lipgloss.NormalBorder()).
-					BorderForeground(lipgloss.Color("240")).
-					BorderBottom(true).
-					Bold(false)
-				s.Selected = s.Selected.
-					Foreground(lipgloss.Color("229")).
-					Background(lipgloss.Color("57")).
-					Bold(false)
-				m.tab.table.SetStyles(s)
-
+				m.readInit()
 			}
 
 		} //here is where tea.enter ends
@@ -398,18 +399,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	//outside tea.msg here
 	if m.action == 0 || m.action == 4 { //the two options with one line inputs
 		m.textInput, cmd = m.textInput.Update(msg)
-	}
-	/**
-	if m.action == 2 {
-		m.entry.textarea, cmd = m.entry.textarea.Update(msg)
-		cmds = append(cmds, cmd)
-		return m, tea.Batch(cmds...)
-	}
-	*/
-
-	if m.action == 3 {
-		m.tab.table, cmd = m.tab.table.Update(msg)
-		return m, cmd
 	}
 
 	return m, cmd
@@ -472,7 +461,7 @@ func (m model) View() string {
 	}
 
 	if m.action == 3 {
-		return docStyle.Render(m.tab.table.View())
+		return m.readView()
 	}
 
 	//resetting password
@@ -488,8 +477,11 @@ func (m model) View() string {
 	return fmt.Sprintf("oops...", m.action)
 }
 
+//flags!
+
 func main() {
-	p := tea.NewProgram(initialModel())
+
+	p := tea.NewProgram(initialModel(os.Args))
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}

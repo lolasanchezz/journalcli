@@ -15,12 +15,13 @@ features and todo lists
     - [ ] be able to load in past entry to edit
     - [ ] edit..history?
     - [ ] calendar view
-    - [ ] be able to search through entries based on tags | date
+    - [x] be able to search through entries based on tags | date
 
 - misc.
     - [ ] be able to change text color, 
     - [ ] have a default program size (!!)
     - [ ] implement loading once io is in cmds
+    - [ ] add in a bunch of different styles
 
 - non-ui
     - [ ] organize encryption tasks into bubble tea cmds

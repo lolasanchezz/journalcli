@@ -29,7 +29,7 @@ func (m *model) writeInit() tea.Cmd {
 	m.entryView.titleInput.CharLimit, m.entryView.tagInput.CharLimit = 156, 156
 	m.entryView.titleInput.Width, m.entryView.tagInput.Width = 30, 30
 	//placeholders!
-	m.entryView.titleInput.Placeholder = time.Now().Format(time.RFC822)
+	m.entryView.titleInput.Placeholder = time.Now().Format(timeFormat)
 	m.entryView.tagInput.Placeholder = "tags..."
 	//now also need to fetch tags from file.
 	if m.data.readIn == 0 {
