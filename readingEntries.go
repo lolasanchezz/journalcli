@@ -10,51 +10,37 @@ import (
 )
 
 type viewDat struct {
-	table    table.Model
-	view     int //for choosing between either scrolling through table or going through modules
-	maxViews int
-	tiS      textinput.Model
-	daS      textinput.Model
-	tagS     textinput.Model
-	cursor   int         //for selecting between searching
-	rows     []table.Row //changes as search fields change
+	table  table.Model
+	view   int //for choosing between either scrolling through table or going through modules
+	tiS    textinput.Model
+	daS    textinput.Model
+	tagS   textinput.Model
+	cursor int         //for selecting between searching
+	rows   []table.Row //changes as search fields change
 }
 
 func (m *model) readInit() tea.Cmd {
-	m.tabInit()
 	m.searchInit()
-	return nil
+	return m.tabInit()
+
 }
 
 func (m *model) tabInit() tea.Cmd {
-	var rows []table.Row
 	var width = 25
-	columns := []table.Column{{Title: "title", Width: width}, {Title: "date written", Width: width}, {Title: "tags", Width: width}}
-	//if data hasn't been decrypted yet (if no entry has been written)
-
-	if newData, err := takeOutData(m.pswdUnhashed, m.secretsPath); len(newData.Entries) == 0 { //if no data available
-		if err != nil {
-			m.errMsg = err
-		}
-		rows = []table.Row{{"no entries yet!"}}
-
-	} else {
-
-		rows = make([]table.Row, len(newData.Entries))
-
-		for index, obj := range newData.Entries {
-			tagStr := strings.Join(obj.Tags, ", ")
-			rows[index] = table.Row{obj.Title, obj.Date.Format(timeFormat), tagStr}
-		}
+	columns := []table.Column{
+		{Title: "title", Width: width},
+		{Title: "date written", Width: width},
+		{Title: "tags", Width: width},
 	}
-	m.tab.rows = rows
+
+	// Show loading row first
 	m.tab.table = table.New(
 		table.WithColumns(columns),
-		table.WithRows(rows),
 		table.WithFocused(true),
+		table.WithRows([]table.Row{{"loading rows in", "", ""}}),
 	)
 
-	//rot styling copied from docs
+	// Set table styles
 	s := table.DefaultStyles()
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
@@ -67,13 +53,49 @@ func (m *model) tabInit() tea.Cmd {
 		Bold(false)
 	m.tab.table.SetStyles(s)
 
-	return nil
+	// Batch loading state + actual data load
+	return tea.Batch(
+		setLoading,
+		func() tea.Msg {
+			newData, err := takeOutData(m.pswdUnhashed, m.secretsPath)
+			if err != nil {
+				m.errMsg = err
+				return dataLoadedIn{
+					data: jsonEntries{readIn: 1},
+					rows: []table.Row{{"error loading data", "", ""}},
+				}
+			}
 
+			if len(newData.Entries) == 0 {
+				return dataLoadedIn{
+					data: jsonEntries{readIn: 1},
+					rows: []table.Row{{"no data yet!", "", ""}},
+				}
+			}
+
+			rows := make([]table.Row, len(newData.Entries))
+			for i, obj := range newData.Entries {
+				rows[i] = table.Row{
+					obj.Title,
+					obj.Date.Format(timeFormat),
+					strings.Join(obj.Tags, ", "),
+				}
+			}
+
+			return dataLoadedIn{
+				data: newData,
+				rows: rows,
+			}
+		},
+	)
 }
 
 func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
+	case dataLoadedIn:
+		m.tab.rows = msg.rows
+		m.tab.table.SetRows(msg.rows)
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 
