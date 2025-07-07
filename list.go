@@ -61,7 +61,7 @@ func (m model) listUpdate(msg tea.Msg) (model, tea.Cmd) {
 	}
 	//setting up each model for when the action is clicked
 	if m.action == 2 { //writing a new entry!
-		m.writeInit()
+		return m, m.writeInit()
 	}
 	if m.action == 7 {
 		return m, tea.Quit

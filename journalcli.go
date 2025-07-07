@@ -80,9 +80,11 @@ type model struct {
 	//ui
 	width  int
 	height int
+}
+type loading bool
 
-	//aggs!
-
+func setLoading() tea.Msg {
+	return loading(true)
 }
 
 func initialModel(args []string) model {
@@ -201,8 +203,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case dataLoadedIn:
 		m.data = msg.data
-		m.entryView.tags = msg.data.Tags
 		m.saving = false
+		m.loading = false
 
 	case tea.KeyMsg:
 

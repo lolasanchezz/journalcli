@@ -12,9 +12,9 @@ import (
 type writing struct {
 	titleInput textinput.Model
 	tagInput   textinput.Model
-	tags       []string
-	body       textarea.Model
-	typingIn   int
+
+	body     textarea.Model
+	typingIn int
 }
 
 //for switching between text inputs
@@ -30,23 +30,26 @@ func (m *model) writeInit() tea.Cmd {
 	//placeholders!
 	m.entryView.titleInput.Placeholder = time.Now().Format(timeFormat)
 	m.entryView.tagInput.Placeholder = "tags..."
-	//now also need to fetch tags from file.
+	//now also need to fetch tags from file. will use cmd for this
+
 	if m.data.readIn == 0 {
-		// attempt to fetch data
-		tmp, err := takeOutData(m.pswdUnhashed, m.secretsPath)
-		if err != nil {
-			m.errMsg = err
-			return nil
-		}
-		if tmp.readIn == 1 { //means theres something in the file
-			m.entryView.tags = tmp.Tags
-		} else {
-			m.entryView.tags = []string{}
-		}
-	} else {
-		m.entryView.tags = m.data.Tags
+		m.loading = true
+		return tea.Sequence(m.entryView.tagInput.Focus(), setLoading, tea.Cmd(func() tea.Msg {
+			// attempt to fetch data
+			tmp, err := takeOutData(m.pswdUnhashed, m.secretsPath)
+			if err != nil {
+				m.errMsg = err
+				return nil
+			}
+
+			if tmp.readIn == 1 { //means theres something in the file
+				return dataLoadedIn{data: tmp}
+			} else {
+				return dataLoadedIn{data: jsonEntries{readIn: 1}}
+			}
+
+		}))
 	}
-	m.entryView.titleInput.Focus()
 	return m.entryView.titleInput.Focus()
 }
 
@@ -70,7 +73,6 @@ func uniqueArr(slices ...[]string) []string {
 
 }
 
-type loading bool
 type dataLoadedIn struct {
 	data jsonEntries
 }
@@ -94,7 +96,7 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			//since this returns nothing if the file is empty or doesn't exist, we don't have to worry about other error handling
 			//running an io here
 			return m,
-				tea.Sequence(tea.Cmd(func() tea.Msg { return loading(true) }), tea.Cmd(
+				tea.Sequence(setLoading, tea.Cmd(
 					func() tea.Msg {
 						var msg dataLoadedIn
 						if m.data.readIn == 0 {
@@ -104,7 +106,7 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 							}
 							msg.data = tmp
 						}
-
+						msg.data = m.data
 						//new part - load in json tags, seperate new tags by commas, see if there's any new ones not in json
 						//add those new ones to json, then take tags from entry and add them to the json entry!
 						titleStr := m.entryView.titleInput.Value()
@@ -112,7 +114,7 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if titleStr == "" { //if no title was entered
 							titleStr = m.entryView.titleInput.Placeholder
 						}
-						pastEntries := append(m.data.Entries, entry{Title: titleStr, Msg: m.entryView.body.Value(), Date: time.Now(), Tags: newTags})
+						pastEntries := append(msg.data.Entries, entry{Title: titleStr, Msg: m.entryView.body.Value(), Date: time.Now(), Tags: newTags})
 
 						var unique []string
 						if newTags[0] != "" {
@@ -206,31 +208,31 @@ func (m *model) writingView() string {
 	// line input
 
 	//make tag line rq
+
 	var tags string
-	if len(m.entryView.tags) > 0 {
+	if len(m.data.Tags) > 0 {
 		tags = "["
-		for i, val := range m.entryView.tags {
-			if i == len(m.entryView.tags)-1 {
+		for i, val := range m.data.Tags {
+			if i == len(m.data.Tags)-1 {
 				tags += val + "]"
 			} else {
 				tags += val + ", "
 			}
 		}
+	} else if m.loading {
+		tags = " loading...."
 	} else {
 		tags = "none yet!"
 	}
-	return docStyle.Render(
-		"title:",
-		m.entryView.titleInput.View(),
-		"\n",
-		"tags (seperate by comma)",
-		m.entryView.tagInput.View(),
-		"\n",
-		"past tags:",
-		tags,
-		"\nwrite entry below!\n",
-		m.entryView.body.View(),
-		"\n esc to go back, ctrl + c to quit",
-	)
-
+	return docStyle.Render(("title:" +
+		m.entryView.titleInput.View() +
+		"\n" +
+		"tags (seperate by comma)" +
+		m.entryView.tagInput.View() +
+		"\n" +
+		"past tags:" +
+		tags +
+		"\nwrite entry below!\n" +
+		m.entryView.body.View() +
+		"\n esc to go back, ctrl + c to quit"))
 }
