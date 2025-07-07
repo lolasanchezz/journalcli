@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"golang.org/x/crypto/scrypt"
 )
 
@@ -124,6 +125,7 @@ func putInFile(data jsonEntries, password string, path string) error {
 
 // take in only password, return []jsonEntries
 func takeOutData(password string, path string) (jsonEntries, error) {
+
 	newData, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -139,4 +141,27 @@ func takeOutData(password string, path string) (jsonEntries, error) {
 	decData.readIn = 1 //read in successfully
 	return decData, nil
 
+}
+
+type errMsg struct {
+	err error
+}
+
+func takeOutDataCmd(password string, path string) tea.Cmd {
+	return func() tea.Msg {
+		data, err := takeOutData(password, path)
+		if err != nil {
+			return errMsg{err} // Return an error message if something goes wrong
+		}
+		return data
+	}
+}
+
+func putInFileCmd(data jsonEntries, password string, path string) tea.Cmd {
+	return func() tea.Msg {
+		if err := putInFile(data, password, path); err != nil {
+			return errMsg{err: err}
+		}
+		return errMsg{err: nil}
+	}
 }

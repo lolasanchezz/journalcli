@@ -94,7 +94,8 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 
 		switch msg.Type {
-
+		case tea.KeyEsc:
+			m.action = 1
 		case tea.KeyRight:
 			if m.tab.view == 0 {
 				m.tab.view++

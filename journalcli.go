@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -33,15 +32,9 @@ type conf struct {
 }
 
 // setting up the list part
-type picking struct {
-	choices []string
-	cursor  int
-}
 
 // typing entries part
-type entryWriting struct {
-	textarea textarea.Model
-}
+
 type entry struct {
 	Title string    `json:"Title"`
 	Msg   string    `json:"Msg"`
@@ -51,12 +44,7 @@ type entry struct {
 type jsonEntries struct { //json struct for single entry
 	readIn  int      //initialized to zero, when read in and empty, set to 1 so that we dont have to keep rereading and returning nothing
 	Entries []entry  `json:"entries"` //will implement tags tmrw! (today)
-	Tags    []string `json:"tags"`
-}
-
-// table viewing
-type item struct {
-	title, desc string
+	Tags    []string `json:"tags"`    //all UNIQUE tags
 }
 
 // TODO: put all the pwsd options in their own struct
@@ -76,9 +64,11 @@ type model struct {
 	debug   string
 	action  int         //what r u doing rn?
 	data    jsonEntries //LARGE json object in here
+	loading bool        //for implementing loading mechanism
+	saving  bool        //so that program doesn't quit before saving is finished
 	//initial list used to select action
-	list  picking
-	entry entryWriting
+	list picking
+
 	//storing data
 
 	tab         viewDat
@@ -90,6 +80,9 @@ type model struct {
 	//ui
 	width  int
 	height int
+
+	//aggs!
+
 }
 
 func initialModel(args []string) model {
@@ -202,18 +195,36 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	//writing the part where password hasn't been entered yet
 	var cmd tea.Cmd = nil
-	var cmds []tea.Cmd
+	//var cmds []tea.Cmd
 
+	//special cases
 	switch msg := msg.(type) {
+	case dataLoadedIn:
+		m.data = msg.data
+		m.entryView.tags = msg.data.Tags
+		m.saving = false
 
 	case tea.KeyMsg:
+
 		switch msg.Type {
 		//general commands
 		case tea.KeyCtrlC:
-			return m, tea.Quit
+			if !m.saving {
+				return m, tea.Quit
+			}
+
+		case tea.KeyEsc:
+			m.action = 1
+
 		}
+
 	}
-	//start of new code - how it should be
+
+	//if no special cases, -> just pass off to helper update functions
+	if m.action == 1 {
+		return m.listUpdate(msg)
+	}
+
 	if m.action == 2 {
 		return m.writingUpdate(msg)
 	}
@@ -227,48 +238,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		//general commands
-		case tea.KeyCtrlC:
-			return m, tea.Quit
 
-		case tea.KeyUp:
-			if m.action == 1 {
-				if m.list.cursor > 0 {
-					m.list.cursor--
-				}
-			}
-		case tea.KeyDown:
-			if m.action == 1 {
-				if m.list.cursor < len(m.list.choices) {
-					m.list.cursor++
-				}
-			}
 		case tea.KeyEsc:
-			if m.action == 2 || m.action == 3 {
+			if m.action == 2 || m.action == 3 || m.action == 5 {
 				m.action = 1
 			}
 
 		case tea.KeyCtrlS:
-			if m.action == 2 {
-
-				//load in data. decrypt it. add most recent entry. encrypt it. put it back
-
-				//decrypting part!
-				//since this returns nothing if the file is empty or doesn't exist, we don't have to worry about other error handling
-				tmp, err := takeOutData(m.pswdUnhashed, m.secretsPath)
-				if err != nil {
-					m.errMsg = err
-				}
-				pastEntries := append(tmp.Entries, entry{Msg: m.entry.textarea.Value(), Date: time.Now()})
-
-				//add past entries for viewing
-				m.data.Entries = pastEntries
-				//now must reencrypt
-				err = putInFile(m.data, m.pswdUnhashed, m.secretsPath)
-				if err != nil {
-					m.errMsg = err
-				}
-				m.action = 1
-			}
 			//saved new password
 			if m.action == 4 {
 				//have to take old data, reencrypt it with new password, put it back,
@@ -300,8 +276,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				//now that that's all done, just return back to user
 				m.textInput.Reset()
-				m.action = 1
 
+				m.action = 1
+				return m.listInit()
 			}
 
 		case tea.KeyEnter:
@@ -350,11 +327,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.textInput.Reset()
 
 						//now we have to prepare the list!
-						m.list.choices = []string{"write entries", "read entries", "change password", "look at analytics", "settings", "logout"}
-
-						m.list.cursor = 0
-
-						return m, cmd
+						return m.listInit()
 
 					}
 					first.Reset()
@@ -364,18 +337,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			//list part
-			if m.action == 1 {
-				m.action = m.list.cursor + 2
 
-				//setting up each model for when the action is clicked
-				if m.action == 2 { //writing a new entry!
-					m.writeInit()
-				}
-				if m.action == 7 {
-					return m, tea.Quit
-				}
-
-			}
 			//set up table here!
 			if m.action == 3 {
 				m.readInit()
@@ -384,13 +346,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} //here is where tea.enter ends
 
 	default:
-
-		if m.action == 2 {
-			if !m.entry.textarea.Focused() {
-				cmd = m.entry.textarea.Focus()
-				cmds = append(cmds, cmd)
-			}
-		}
 
 		if m.action == 7 {
 			return m, tea.Quit
@@ -402,23 +357,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, cmd
-}
-
-func (m picking) list() string {
-	var s string
-	for i, choice := range m.choices {
-
-		// Is the cursor pointing at this choice?
-		cursor := " " // no cursor
-		if m.cursor == i {
-			cursor = "> " // cursor!
-		}
-
-		// Render the row
-		s += (cursor + choice + "\n")
-	}
-	return s
-
 }
 
 func (m model) View() string {
@@ -450,10 +388,7 @@ func (m model) View() string {
 
 	if m.action == 1 {
 
-		return docStyle.Render(
-			"what would you like to do? \n",
-			m.list.list(),
-		)
+		return m.listView()
 	}
 
 	if m.action == 2 {
@@ -471,6 +406,10 @@ func (m model) View() string {
 			m.textInput.View(),
 			"\n esc to go back, ctrl+s to save",
 		)
+	}
+
+	if m.action == 5 {
+		return m.viewAggs()
 	}
 
 	//never supposed to end up here

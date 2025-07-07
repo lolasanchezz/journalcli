@@ -1,0 +1,85 @@
+package main
+
+import (
+	"strconv"
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
+
+var myCuteBorder = lipgloss.Border{
+	Top:         "._.:*:",
+	Bottom:      "._.:*:",
+	Left:        "|*",
+	Right:       "|*",
+	TopLeft:     "*",
+	TopRight:    "*",
+	BottomLeft:  "*",
+	BottomRight: "*",
+}
+
+var aggsBoxStyle = lipgloss.NewStyle().
+	Border(myCuteBorder).
+	Padding(2).
+	Width(50).
+	AlignVertical(lipgloss.Center).
+	AlignHorizontal(lipgloss.Center)
+
+var header = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(lipgloss.Color("#ffffff"))
+
+var text = lipgloss.NewStyle().
+	Foreground(lipgloss.Color("ffffff"))
+
+func (m *model) viewAggs() string {
+
+	if m.data.readIn == 0 {
+
+		// attempt to fetch data
+		tmp, err := takeOutData(m.pswdUnhashed, m.secretsPath)
+		if err != nil {
+			m.errMsg = err
+			return ""
+		}
+		m.data = tmp
+		if tmp.readIn == 0 {
+			m.data.readIn = 1
+			return aggsBoxStyle.Render(header.Render("no data yet!"))
+		}
+
+	}
+	aggsBoxStyle.Width(m.width / 2)
+	allEntries := m.data.Entries
+	sum := len(allEntries)
+	var averageLength int
+	mostUsedTagMap := make(map[string]int)
+
+	for _, entry := range allEntries {
+		averageLength += len(entry.Msg)
+		for _, tag := range entry.Tags {
+			mostUsedTagMap[tag] = mostUsedTagMap[tag] + 1
+		}
+	}
+	averageLength = averageLength / sum
+	var popTag []string
+	var bigNum int
+	for tag, num := range mostUsedTagMap {
+		if num > bigNum {
+			popTag = []string{tag}
+			bigNum = num
+		} else if num == bigNum {
+			popTag = append(popTag, tag)
+		}
+	}
+
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		header.Render("stats!"),
+		text.Render("total entries made: "+strconv.Itoa(sum)),
+		text.Render("average char length: "+strconv.Itoa(averageLength)),
+		text.Render("most used tag: "+strings.Join(popTag, ", ")),
+	)
+
+	return aggsBoxStyle.Render(content)
+
+}

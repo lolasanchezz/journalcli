@@ -1,7 +1,6 @@
 package main
 
 import (
-	"slices"
 	"strings"
 	"time"
 
@@ -44,9 +43,36 @@ func (m *model) writeInit() tea.Cmd {
 		} else {
 			m.entryView.tags = []string{}
 		}
+	} else {
+		m.entryView.tags = m.data.Tags
 	}
 	m.entryView.titleInput.Focus()
 	return m.entryView.titleInput.Focus()
+}
+
+func uniqueArr(slices ...[]string) []string {
+	var all []string
+	for _, slice := range slices {
+		all = append(all, slice...)
+	}
+	var unique []string
+	seen := make(map[string]bool)
+
+	for _, v := range all {
+		v = strings.TrimSpace(v)
+		v = strings.ToLower(v)
+		if !seen[v] { //if the string has been seen already in the map
+			seen[v] = true
+			unique = append(unique, v)
+		}
+	}
+	return unique
+
+}
+
+type loading bool
+type dataLoadedIn struct {
+	data jsonEntries
 }
 
 func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -62,54 +88,50 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyCtrlS:
 
 			//load in data. decrypt it. add most recent entry. encrypt it. put it back
-
+			m.action = 1
+			m.saving = true
 			//decrypting part!
 			//since this returns nothing if the file is empty or doesn't exist, we don't have to worry about other error handling
+			//running an io here
+			return m,
+				tea.Sequence(tea.Cmd(func() tea.Msg { return loading(true) }), tea.Cmd(
+					func() tea.Msg {
+						var msg dataLoadedIn
+						if m.data.readIn == 0 {
+							tmp, err := takeOutData(m.pswdUnhashed, m.secretsPath)
+							if err != nil {
+								m.errMsg = err
+							}
+							msg.data = tmp
+						}
 
-			if m.data.readIn == 0 {
-				tmp, err := takeOutData(m.pswdUnhashed, m.secretsPath)
-				if err != nil {
-					m.errMsg = err
-				}
-				m.data = tmp
-			}
+						//new part - load in json tags, seperate new tags by commas, see if there's any new ones not in json
+						//add those new ones to json, then take tags from entry and add them to the json entry!
+						titleStr := m.entryView.titleInput.Value()
+						newTags := strings.Split(m.entryView.tagInput.Value(), ",")
+						if titleStr == "" { //if no title was entered
+							titleStr = m.entryView.titleInput.Placeholder
+						}
+						pastEntries := append(m.data.Entries, entry{Title: titleStr, Msg: m.entryView.body.Value(), Date: time.Now(), Tags: newTags})
 
-			//new part - load in json tags, seperate new tags by commas, see if there's any new ones not in json
-			//add those new ones to json, then take tags from entry and add them to the json entry!
-			newTags := strings.Split(m.entryView.tagInput.Value(), ",")
-			var unique []string
-			if newTags[0] != "" {
-				all := slices.Concat(newTags, m.data.Tags)
-				//getting the unique tags
-				seen := make(map[string]bool)
+						var unique []string
+						if newTags[0] != "" {
+							unique = uniqueArr(newTags, msg.data.Tags)
+						} else {
+							unique = msg.data.Tags
+						}
 
-				for _, v := range all {
-					v = strings.TrimSpace(v)
-					v = strings.ToLower(v)
-					if !seen[v] { //if the string has been seen already in the map
-						seen[v] = true
-						unique = append(unique, v)
-					}
-				}
-			} else {
-				unique = m.data.Tags
-			}
-			titleStr := m.entryView.titleInput.Value()
-			if titleStr == "" { //if no title was entered
-				titleStr = m.entryView.titleInput.Placeholder
-			}
-			pastEntries := append(m.data.Entries, entry{Title: titleStr, Msg: m.entryView.body.Value(), Date: time.Now(), Tags: newTags})
+						//add past entries for viewing
+						msg.data.Entries = pastEntries
+						msg.data.Tags = unique
 
-			//add past entries for viewing
-			m.data.Entries = pastEntries
-			m.data.Tags = unique
-			m.entryView.tags = unique
-			//now must reencrypt
-			err := putInFile(m.data, m.pswdUnhashed, m.secretsPath)
-			if err != nil {
-				m.errMsg = err
-			}
-			m.action = 1
+						putInFile(msg.data, m.pswdUnhashed, m.secretsPath)
+
+						return msg //usually would have to do something with this, but because you can write an entry and
+						// just exit and have it save while you look through the list, its no biggie and nothing needs to signify to the user
+						//that its saving
+					},
+				))
 
 		case tea.KeyEsc:
 			m.action = 1
