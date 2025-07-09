@@ -25,6 +25,7 @@ func (m *model) searchInit() tea.Cmd {
 }
 
 func (m *model) searchUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+
 	var p *textinput.Model // pointer to the selected textinput
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -62,7 +63,7 @@ func (m *model) searchUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	*p = updated
 
 	m.filter(m.tab.tiS.Value(), m.tab.daS.Value(), m.tab.tagS.Value())
-
+	//m.tab.table.SetRows(m.tab.filteredRows.rows)
 	return m, cmd
 }
 
@@ -92,16 +93,19 @@ func deepCopyRows(rows []table.Row) []table.Row {
 
 // helper function to filter table entries
 func (m *model) filter(title string, date string, tags string) {
-	rows1 := deepCopyRows(m.tab.rows)
 
+	rows := deepCopyRows(m.tab.rows.rows)
+	data := make([]hiddenData, len(m.tab.rows.rows))
+	copy(m.tab.rows.data, data)
 	// Return original if all filters are empty
 	if title == "" && date == "" && tags == "" {
-		m.tab.table.SetRows(m.tab.rows)
+		m.tab.filteredRows = m.tab.rows
+		m.tab.table.SetRows(m.tab.rows.rows)
 		return
 	}
 
-	var filtered []table.Row
-	for _, val := range rows1 {
+	var filtered rowData
+	for i, val := range rows {
 		keep := true
 
 		if title != "" && !strings.Contains(val[0], title) {
@@ -115,9 +119,11 @@ func (m *model) filter(title string, date string, tags string) {
 		}
 
 		if keep {
-			filtered = append(filtered, val)
+			filtered.rows = append(filtered.rows, val)
+			filtered.data = append(filtered.data, data[i])
 		}
 	}
 
-	m.tab.table.SetRows(filtered)
+	m.tab.filteredRows = filtered
+	m.tab.table.SetRows(filtered.rows)
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	//å"strconv"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -9,18 +8,29 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type hiddenData struct {
+	msg string
+	id  int
+}
+type rowData struct {
+	rows []table.Row
+	data []hiddenData
+}
+
 func (m *model) tabInit() tea.Cmd {
 	var width = 25
 	columns := []table.Column{
 		{Title: "title", Width: width},
 		{Title: "date written", Width: width},
 		{Title: "tags", Width: width},
+		{Title: "hidden", Width: 0},
 	}
 
 	// Show loading row first
 	m.tab.table = table.New(
 		table.WithColumns(columns),
 		table.WithRows([]table.Row{{"loading rows in", "", ""}}),
+		table.WithHeight(m.height/4),
 	)
 
 	// Set table styles
@@ -45,25 +55,30 @@ func (m *model) tabInit() tea.Cmd {
 				m.errMsg = err
 				return dataLoadedIn{
 					data: jsonEntries{readIn: 1},
-					rows: []table.Row{{"error loading data", "", ""}},
+					rows: rowData{rows: []table.Row{{"error loading data", "", "", ""}}},
 				}
 			}
 
 			if len(newData.Entries) == 0 {
 				return dataLoadedIn{
 					data: jsonEntries{readIn: 1},
-					rows: []table.Row{{"no data yet!", "", ""}},
+					rows: rowData{rows: []table.Row{{"no data yet!", "", "", ""}}},
 				}
 			}
-
-			rows := make([]table.Row, len(newData.Entries))
+			var rows rowData
+			rows.rows = make([]table.Row, len(newData.Entries))
+			rows.data = make([]hiddenData, len(newData.Entries))
 			for i, obj := range newData.Entries {
-				rows[i] = table.Row{
+				rows.rows[i] = table.Row{
 					obj.Title,
 					obj.Date.Format(timeFormat),
 					strings.Join(obj.Tags, ", "),
-					//strconv.Itoa(i), //an id
-					//obj.Msg,         //so you can IMMEDIATELY see an entries message
+					obj.Msg,
+				}
+				rows.data[i] = hiddenData{
+					obj.Msg,
+					i, //an id
+					//so you can IMMEDIATELY see an entries message
 				}
 			}
 

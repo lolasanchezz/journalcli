@@ -13,8 +13,9 @@ type viewDat struct {
 	tiS          textinput.Model
 	daS          textinput.Model
 	tagS         textinput.Model
-	cursor       int         //for selecting between searching
-	rows         []table.Row //changes as search fields change
+	cursor       int     //for selecting between searching
+	rows         rowData //changes as search fields change
+	filteredRows rowData
 	viewsEnabled []bool
 	maxViews     int
 	eView        viewLog
@@ -32,17 +33,18 @@ func (m *model) readView() string {
 
 	str := lipgloss.JoinHorizontal(lipgloss.Top, m.tab.table.View(), m.searchView())
 	if m.tab.maxViews == 3 {
-		return lipgloss.JoinVertical(lipgloss.Bottom, str, m.viewportView())
+		return lipgloss.JoinVertical(lipgloss.Top, m.viewportView(), str)
 	}
 	return str
 }
 
 func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+
 	switch msg := msg.(type) {
 
 	case dataLoadedIn:
 		m.tab.rows = msg.rows
-		m.tab.table.SetRows(msg.rows)
+		m.tab.table.SetRows(msg.rows.rows)
 		m.tab.table.Focus()
 	case tea.WindowSizeMsg:
 		// Update column widths based on new width
@@ -78,9 +80,11 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !(m.tab.view == 2) {
 				if m.tab.maxViews == 3 {
 					m.tab.maxViews = 2
+					m.tab.viewsEnabled[2] = false
 
 				} else {
 					m.tab.maxViews = 3
+					m.tab.viewsEnabled[2] = true
 					return m.viewportInit(), nil
 				}
 
@@ -89,6 +93,11 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	} //otherwise, just pass onto helping functions
+
+	if m.tab.viewsEnabled[2] {
+		m.viewportUpdate(msg) //need to update this no matter what
+	}
+
 	if m.tab.view == 0 { //table open - always open!
 		m.tab.tiS.Blur()
 		m.tab.daS.Blur()
@@ -103,5 +112,6 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.tab.view == 2 {
 		return m.viewportUpdate(msg)
 	}
+
 	return m, nil
 }

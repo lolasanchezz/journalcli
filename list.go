@@ -63,6 +63,9 @@ func (m model) listUpdate(msg tea.Msg) (model, tea.Cmd) {
 	if m.action == 2 { //writing a new entry!
 		return m, m.writeInit()
 	}
+	if m.action == 3 {
+		return m, m.readInit()
+	}
 	if m.action == 7 {
 		return m, tea.Quit
 	}

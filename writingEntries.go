@@ -75,6 +75,7 @@ func uniqueArr(slices ...[]string) []string {
 
 type dataLoadedIn struct {
 	data jsonEntries
+	rows rowData
 }
 
 func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -110,7 +111,12 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 						//new part - load in json tags, seperate new tags by commas, see if there's any new ones not in json
 						//add those new ones to json, then take tags from entry and add them to the json entry!
 						titleStr := m.entryView.titleInput.Value()
-						newTags := strings.Split(m.entryView.tagInput.Value(), ",")
+						var newTags []string
+						if m.entryView.tagInput.Value() == "" {
+							newTags = []string{""}
+						} else {
+							newTags = strings.Split(m.entryView.tagInput.Value(), ",")
+						}
 						if titleStr == "" { //if no title was entered
 							titleStr = m.entryView.titleInput.Placeholder
 						}

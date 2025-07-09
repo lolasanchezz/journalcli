@@ -205,7 +205,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.data = msg.data
 		m.saving = false
 		m.loading = false
-
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
 	case tea.KeyMsg:
 
 		switch msg.Type {
