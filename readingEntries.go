@@ -34,9 +34,9 @@ func (m *model) readInit() tea.Cmd {
 
 func (m *model) readView() string {
 
-	str := lipgloss.JoinHorizontal(lipgloss.Top, m.tab.table.View(), m.searchView())
+	str := lipgloss.PlaceHorizontal(m.width, lipgloss.Center, lipgloss.JoinHorizontal(lipgloss.Top, m.tab.table.View(), m.searchView()))
 	if m.tab.maxViews == 3 {
-		return lipgloss.JoinVertical(lipgloss.Bottom, m.viewportView(), str)
+		return lipgloss.PlaceHorizontal(m.width, lipgloss.Center, (lipgloss.JoinVertical(lipgloss.Top, str)))
 	}
 	return str
 }
