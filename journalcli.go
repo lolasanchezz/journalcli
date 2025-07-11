@@ -42,9 +42,9 @@ type entry struct {
 	Tags  []string  `json:"Tags"`
 }
 type jsonEntries struct { //json struct for single entry
-	readIn  int      //initialized to zero, when read in and empty, set to 1 so that we dont have to keep rereading and returning nothing
-	Entries []entry  `json:"entries"` //will implement tags tmrw! (today)
-	Tags    []string `json:"tags"`    //all UNIQUE tags
+	readIn  int            //initialized to zero, when read in and empty, set to 1 so that we dont have to keep rereading and returning nothing
+	Entries []entry        `json:"entries"` //will implement tags tmrw! (today)
+	Tags    map[string]int `json:"tags"`    //all UNIQUE tags
 }
 
 // TODO: put all the pwsd options in their own struct
@@ -197,7 +197,7 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	//writing the part where password hasn't been entered yet
 	var cmd tea.Cmd = nil
-	//var cmds []tea.Cmd
+	var cmds []tea.Cmd
 
 	//special cases
 	switch msg := msg.(type) {
@@ -235,6 +235,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.action == 3 {
 		return m.readUpdate(msg)
+		cmds = append(cmds, cmd)
+		return m, tea.Batch(cmds...)
 	}
 
 	switch msg := msg.(type) {

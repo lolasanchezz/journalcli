@@ -1,6 +1,9 @@
 package main
 
 import (
+	"strconv"
+	"time"
+
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -33,7 +36,7 @@ func (m *model) readView() string {
 
 	str := lipgloss.JoinHorizontal(lipgloss.Top, m.tab.table.View(), m.searchView())
 	if m.tab.maxViews == 3 {
-		return lipgloss.JoinVertical(lipgloss.Top, m.viewportView(), str)
+		return lipgloss.JoinVertical(lipgloss.Bottom, m.viewportView(), str)
 	}
 	return str
 }
@@ -50,11 +53,16 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Update column widths based on new width
 		// Reserve room for spacing, search box, etc.
 		usableWidth := m.width / 2
-		numCols := len(m.tab.table.Columns())
+		hiddenCols := 2
+		numCols := len(m.tab.table.Columns()) - hiddenCols //have to exclude two hidden columns
 		colWidth := usableWidth / numCols
 
 		cols := m.tab.table.Columns()
 		for i := range cols {
+			if i >= numCols {
+				break
+
+			}
 			cols[i].Width = colWidth
 		}
 		m.tab.table.SetColumns(cols)
@@ -89,6 +97,22 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 			}
+
+		case "enter":
+			//switch over to writing
+			m.writeInit()
+			var e entry
+			row := m.tab.table.SelectedRow()
+			e.Date, _ = time.Parse(timeFormat, row[1])
+			i, _ := strconv.Atoi(row[4])
+			m.entryView.entryId = i + 1
+			m.entryView.existEntry = e
+
+			m.entryView.tagInput.SetValue(row[2])
+			m.entryView.titleInput.SetValue(row[0])
+			m.entryView.body.SetValue(row[3])
+
+			m.action = 2
 
 		}
 

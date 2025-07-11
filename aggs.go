@@ -53,18 +53,15 @@ func (m *model) viewAggs() string {
 	allEntries := m.data.Entries
 	sum := len(allEntries)
 	var averageLength int
-	mostUsedTagMap := make(map[string]int)
 
 	for _, entry := range allEntries {
 		averageLength += len(entry.Msg)
-		for _, tag := range entry.Tags {
-			mostUsedTagMap[tag] = mostUsedTagMap[tag] + 1
-		}
+
 	}
 	averageLength = averageLength / sum
 	var popTag []string
 	var bigNum int
-	for tag, num := range mostUsedTagMap {
+	for tag, num := range m.data.Tags {
 		if num > bigNum {
 			popTag = []string{tag}
 			bigNum = num

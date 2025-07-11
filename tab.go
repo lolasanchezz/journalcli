@@ -1,6 +1,9 @@
 package main
 
 import (
+	"log"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/table"
@@ -24,6 +27,7 @@ func (m *model) tabInit() tea.Cmd {
 		{Title: "date written", Width: width},
 		{Title: "tags", Width: width},
 		{Title: "hidden", Width: 0},
+		{Title: "idhidden", Width: 0},
 	}
 
 	// Show loading row first
@@ -74,6 +78,7 @@ func (m *model) tabInit() tea.Cmd {
 					obj.Date.Format(timeFormat),
 					strings.Join(obj.Tags, ", "),
 					obj.Msg,
+					strconv.Itoa(i),
 				}
 				rows.data[i] = hiddenData{
 					obj.Msg,
@@ -92,9 +97,52 @@ func (m *model) tabInit() tea.Cmd {
 
 func (m model) tabUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+	var cmds []tea.Cmd
 	// default for now
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "backspace":
+
+			//first have to delete the tags from the unique map
+			row := m.tab.table.SelectedRow()
+			tags := strings.Split(row[2], "")
+			if len(tags) > 0 {
+				for _, val := range tags {
+					if _, ok := m.data.Tags[val]; ok {
+						m.data.Tags[val] = m.data.Tags[val] - 1
+					}
+				}
+			}
+
+			//then remove row from data
+			i, err := strconv.Atoi(row[4])
+			if err != nil {
+				m.errMsg = err
+				return m, nil
+			}
+			m.data.Entries = slices.Delete(m.data.Entries, i, i+1)
+			cmds = append(cmds, putInFileCmd(m.data, m.pswdUnhashed, m.secretsPath))
+			//then remove row from table
+			rows := m.tab.table.Rows()
+			rowI := 999999
+			for i, val := range rows {
+				if slices.Equal(val, row) {
+					rowI = i
+					break
+				}
+			}
+			if rowI == 999999 {
+				log.Panic("couldn't find rows in table")
+			}
+			m.tab.table.SetRows(slices.Delete(rows, rowI, rowI+1))
+		}
+	}
+
 	m.tab.table, cmd = m.tab.table.Update(msg)
-	return m, cmd
+	cmds = append(cmds, cmd)
+	return m, tea.Batch(cmds...)
 }
 
 var searchBoxStyle = lipgloss.NewStyle().

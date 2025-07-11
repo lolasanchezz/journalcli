@@ -51,7 +51,7 @@ func (m model) viewportInit() model {
 	return m
 }
 
-func (m model) viewportUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *model) viewportUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 	selEntry := m.tab.table.SelectedRow()

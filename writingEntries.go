@@ -12,9 +12,10 @@ import (
 type writing struct {
 	titleInput textinput.Model
 	tagInput   textinput.Model
-
-	body     textarea.Model
-	typingIn int
+	existEntry entry
+	entryId    int //zero if nothing, index + 1 if we are editing an existing entry
+	body       textarea.Model
+	typingIn   int
 }
 
 //for switching between text inputs
@@ -53,24 +54,18 @@ func (m *model) writeInit() tea.Cmd {
 	return m.entryView.titleInput.Focus()
 }
 
-func uniqueArr(slices ...[]string) []string {
+func uniqueArrMap(bigmap map[string]int, slices ...[]string) map[string]int {
 	var all []string
 	for _, slice := range slices {
 		all = append(all, slice...)
 	}
-	var unique []string
-	seen := make(map[string]bool)
 
 	for _, v := range all {
 		v = strings.TrimSpace(v)
 		v = strings.ToLower(v)
-		if !seen[v] { //if the string has been seen already in the map
-			seen[v] = true
-			unique = append(unique, v)
-		}
+		bigmap[v] = bigmap[v] + 1
 	}
-	return unique
-
+	return bigmap
 }
 
 type dataLoadedIn struct {
@@ -110,7 +105,12 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 						msg.data = m.data
 						//new part - load in json tags, seperate new tags by commas, see if there's any new ones not in json
 						//add those new ones to json, then take tags from entry and add them to the json entry!
+
+						//now, have to check whether we are writing a new value or were passed one from readingEntries.
+						var pastEntries []entry
+						var unique map[string]int
 						titleStr := m.entryView.titleInput.Value()
+
 						var newTags []string
 						if m.entryView.tagInput.Value() == "" {
 							newTags = []string{""}
@@ -120,18 +120,31 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if titleStr == "" { //if no title was entered
 							titleStr = m.entryView.titleInput.Placeholder
 						}
-						pastEntries := append(msg.data.Entries, entry{Title: titleStr, Msg: m.entryView.body.Value(), Date: time.Now(), Tags: newTags})
-
-						var unique []string
 						if newTags[0] != "" {
-							unique = uniqueArr(newTags, msg.data.Tags)
-						} else {
-							unique = msg.data.Tags
+							//update unique map
+							if m.entryView.tagInput.Value() != "" {
+								newTags := strings.Split(m.entryView.tagInput.Value(), ",")
+								unique = uniqueArrMap(msg.data.Tags, newTags)
+								msg.data.Tags = unique
+							}
 						}
+						if m.entryView.entryId != 0 {
+							oldEntry := m.entryView.existEntry
+							if titleStr != "" {
+								oldEntry.Title = m.entryView.titleInput.Value()
+							} else {
+								oldEntry.Title = "edit on" + time.Now().Format(timeFormat)
+							}
 
+							oldEntry.Msg = m.entryView.body.Value()
+							oldEntry.Tags = newTags
+							pastEntries = msg.data.Entries
+							pastEntries[m.entryView.entryId] = oldEntry
+						} else {
+							pastEntries = append(msg.data.Entries, entry{Title: titleStr, Msg: m.entryView.body.Value(), Date: time.Now(), Tags: newTags})
+						}
 						//add past entries for viewing
 						msg.data.Entries = pastEntries
-						msg.data.Tags = unique
 
 						putInFile(msg.data, m.pswdUnhashed, m.secretsPath)
 
@@ -218,11 +231,13 @@ func (m *model) writingView() string {
 	var tags string
 	if len(m.data.Tags) > 0 {
 		tags = "["
-		for i, val := range m.data.Tags {
-			if i == len(m.data.Tags)-1 {
-				tags += val + "]"
+		l := len(m.data.Tags)
+		for i, _ := range m.data.Tags {
+			l--
+			if l == 0 {
+				tags += i + "]"
 			} else {
-				tags += val + ", "
+				tags += i + ", "
 			}
 		}
 	} else if m.loading {

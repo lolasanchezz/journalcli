@@ -12,8 +12,6 @@ features and todo lists
     - [ ] option to throw in different media
 - viewing entries
     - [ ] be able to load in past entry to edit
-    - [ ] edit..history?
-    - [ ] calendar view
     - [x] be able to search through entries based on tags | date
 
 - misc.
@@ -29,3 +27,11 @@ features and todo lists
 
 ## bugs
 - [ ] readui doesn't store data away and reload it from memory once viewed for a second time
+- [ ] readui doesn't support multiple tags..
+
+
+### small things
+- [ ] add a 'date last modified' option
+- [ ] get rid of secondary 'hidden data' struct in rowsData struct
+- [ ] add a "are you sure you want to delete?" in table
+- [ ] add a pointer to each json entry in the tab data
