@@ -197,6 +197,7 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	//writing the part where password hasn't been entered yet
 	var cmd tea.Cmd = nil
+	var cmds []tea.Cmd
 
 	//special cases
 	switch msg := msg.(type) {
@@ -234,7 +235,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.action == 3 {
 		return m.readUpdate(msg)
-
+		cmds = append(cmds, cmd)
+		return m, tea.Batch(cmds...)
 	}
 
 	switch msg := msg.(type) {

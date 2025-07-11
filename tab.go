@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -126,7 +124,6 @@ func (m model) tabUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.data.Entries = slices.Delete(m.data.Entries, i, i+1)
 			cmds = append(cmds, putInFileCmd(m.data, m.pswdUnhashed, m.secretsPath))
-
 			//then remove row from table
 			rows := m.tab.table.Rows()
 			rowI := 999999
@@ -139,20 +136,7 @@ func (m model) tabUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if rowI == 999999 {
 				log.Panic("couldn't find rows in table")
 			}
-			rows = slices.Delete(rows, rowI, rowI+1)
-			//then update index of rows
-
-			for rowI < len(rows) {
-				i, _ := strconv.Atoi(rows[rowI][4])
-				rows[rowI][4] = strconv.Itoa(i - 1)
-				rowI++
-			}
-
-			m.tab.table.SetRows(rows)
-			//debugging
-			b, err := json.Marshal(rows)
-			os.WriteFile("./debug.txt", b, os.FileMode(os.O_RDWR))
-
+			m.tab.table.SetRows(slices.Delete(rows, rowI, rowI+1))
 		}
 	}
 
