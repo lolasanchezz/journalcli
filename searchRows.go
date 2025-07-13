@@ -32,7 +32,7 @@ func (m *model) searchUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.Type {
 		case tea.KeyDown:
-			if m.tab.cursor != 3 {
+			if m.tab.cursor != 2 {
 				m.tab.cursor++
 			}
 		case tea.KeyUp:

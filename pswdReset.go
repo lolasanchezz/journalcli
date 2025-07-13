@@ -10,11 +10,11 @@ type pswdReset struct {
 	ti textinput.Model
 }
 
-type pswdResetMsg struct {
-	m model
-}
-
-func (m model) psrsInit() tea.Cmd {
+func (m *model) psrsInit() tea.Cmd {
+	m.psRs.ti = textinput.New()
+	m.psRs.ti.Placeholder = "enter new password"
+	m.psRs.ti.Width = lipgloss.Width(m.psRs.ti.Placeholder)
+	m.psRs.ti.Focus()
 	return textinput.Blink
 }
 
@@ -48,7 +48,7 @@ func (m model) psrsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			conf := conf{JournalHash: newHash}
-			err = putInConfig(m.homeDir, conf)
+			err = putInConfig(m.confPath, conf)
 			if err != nil {
 				m.errMsg = err
 				return m, nil
@@ -67,7 +67,7 @@ func (m model) psrsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) psrsView() string {
-	return lipgloss.JoinVertical(lipgloss.Center, "write new password here:,",
+	return lipgloss.JoinVertical(lipgloss.Center, "write new password",
 		m.psRs.ti.View(),
 		"\n esc to go back, ctrl+s to save",
 	)

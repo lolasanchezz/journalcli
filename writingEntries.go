@@ -27,8 +27,10 @@ func (m *model) writeInit() tea.Cmd {
 	m.entryView.titleInput = textinput.New()
 	m.entryView.tagInput = textinput.New()
 	m.entryView.body = textarea.New()
+
 	//formatting
 	m.entryView.titleInput.CharLimit, m.entryView.tagInput.CharLimit = 156, 156
+	m.entryView.body.SetWidth(int(float64(m.width) * 0.7))
 
 	m.entryView.tagInput.Width, m.entryView.titleInput.Width = lipgloss.Width("tags"), lipgloss.Width(time.Now().Format(timeFormat))
 	//placeholders!
@@ -53,7 +55,7 @@ func (m *model) writeInit() tea.Cmd {
 				if len(tmp.Tags) > 0 {
 					tags = "["
 					l := len(tmp.Tags)
-					for i, _ := range tmp.Tags {
+					for i := range tmp.Tags {
 						l--
 						if l == 0 {
 							tags += i + "]"
@@ -67,7 +69,8 @@ func (m *model) writeInit() tea.Cmd {
 				m.entryView.tagStr = tags
 				return dataLoadedIn{data: tmp, msg: tags}
 			} else {
-				return dataLoadedIn{data: jsonEntries{readIn: 1}}
+				//nothing in the file
+				return dataLoadedIn{data: jsonEntries{readIn: 1, Tags: make(map[string]int)}}
 			}
 
 		}))
@@ -77,7 +80,7 @@ func (m *model) writeInit() tea.Cmd {
 		if len(m.data.Tags) > 0 {
 			tags = "["
 			l := len(m.data.Tags)
-			for i, _ := range m.data.Tags {
+			for i := range m.data.Tags {
 				l--
 				if l == 0 {
 					tags += i + "]"
@@ -147,6 +150,7 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 							msg.data = tmp
 						}
 						msg.data = m.data
+						debug(msg)
 						//new part - load in json tags, seperate new tags by commas, see if there's any new ones not in json
 						//add those new ones to json, then take tags from entry and add them to the json entry!
 
@@ -167,6 +171,7 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if newTags[0] != "" {
 							//update unique map
 							if m.entryView.tagInput.Value() != "" {
+
 								newTags := strings.Split(m.entryView.tagInput.Value(), ",")
 								unique = uniqueArrMap(msg.data.Tags, newTags)
 								msg.data.Tags = unique
@@ -189,7 +194,7 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 						//add past entries for viewing
 						msg.data.Entries = pastEntries
-
+						debug(msg)
 						putInFile(msg.data, m.pswdUnhashed, m.secretsPath)
 
 						return msg //usually would have to do something with this, but because you can write an entry and
@@ -257,20 +262,7 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) writingView() string {
 
-	//there should be ->
-	// a header text input for an optional title
-	// a text input place for tags
-	// somehow offer a way to see past tags?
-	// like a [tag, tag, tag]
-	// a body multiline input
-	// help options on the bottom
-	// something like this
-	// title:(header) 7/3/26 (placeholder for text input)
-	// tags: (header) none (placeholder)
-	// past tags: [tag, tag, tag]
-	// line input
-
-	//make tag line rq
+	m.entryView.body.SetWidth(int(float64(m.width) * 0.7))
 
 	var tags string
 	if m.loading {

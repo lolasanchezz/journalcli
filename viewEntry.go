@@ -19,14 +19,7 @@ type viewLog struct {
 func (m *model) setRow(row table.Row) int {
 	m.tab.eView.header = row[0]
 	m.tab.eView.date = row[1]
-	//i, err := strconv.Atoi(row[3])
-	/*
-		if err != nil {
-			m.errMsg = err
-			return
-		}
-	*/
-	// := m.tab.filteredRows.data[i].msg
+
 	m.tab.eView.viewPort.SetContent(row[3])
 	return lipgloss.Height(row[3])
 }

@@ -29,7 +29,8 @@ var (
 			Align(lipgloss.Center).
 			Foreground(lipgloss.Color(pwhite)).
 			Padding(1).
-			AlignHorizontal(lipgloss.Center)
+			Width(20).
+			AlignVertical(lipgloss.Center)
 
 	viewportStyle = lipgloss.NewStyle().
 			BorderStyle(lineBorder).
@@ -40,4 +41,10 @@ var (
 			AlignHorizontal(lipgloss.Center).
 			Italic(true).
 			Bold(true)
+
+	searchBoxStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(pwhite)).
+			AlignHorizontal(lipgloss.Left).
+			Border(lipgloss.ThickBorder(), true, true).
+			Padding(1)
 )

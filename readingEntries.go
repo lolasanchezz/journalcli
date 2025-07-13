@@ -22,6 +22,7 @@ type viewDat struct {
 	viewsEnabled []bool
 	maxViews     int
 	eView        viewLog
+	loading      bool
 }
 
 func (m *model) readInit() tea.Cmd {
@@ -57,6 +58,7 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.tab.rows = msg.rows
 		m.tab.table.SetRows(msg.rows.rows)
 		m.tab.table.Focus()
+		m.tab.loading = false
 	case tea.WindowSizeMsg:
 		// Update column widths based on new width
 		// Reserve room for spacing, search box, etc.
@@ -100,7 +102,7 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "v":
-			if !(m.tab.view == 2) {
+			if !(m.tab.view == 2) && !m.loading {
 				if m.tab.maxViews == 3 {
 					m.tab.maxViews = 2
 					m.tab.viewsEnabled[2] = false
@@ -114,21 +116,22 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "enter":
-			//switch over to writing
-			m.writeInit()
-			var e entry
-			row := m.tab.table.SelectedRow()
-			e.Date, _ = time.Parse(timeFormat, row[1])
-			i, _ := strconv.Atoi(row[4])
-			m.entryView.entryId = i + 1
-			m.entryView.existEntry = e
+			if !m.loading {
+				//switch over to writing
+				m.writeInit()
+				var e entry
+				row := m.tab.table.SelectedRow()
+				e.Date, _ = time.Parse(timeFormat, row[1])
+				i, _ := strconv.Atoi(row[4])
+				m.entryView.entryId = i + 1
+				m.entryView.existEntry = e
 
-			m.entryView.tagInput.SetValue(row[2])
-			m.entryView.titleInput.SetValue(row[0])
-			m.entryView.body.SetValue(row[3])
+				m.entryView.tagInput.SetValue(row[2])
+				m.entryView.titleInput.SetValue(row[0])
+				m.entryView.body.SetValue(row[3])
 
-			m.action = 2
-
+				m.action = 2
+			}
 		}
 
 	} //otherwise, just pass onto helping functions

@@ -3,14 +3,15 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // constant for formatting time
@@ -80,9 +81,10 @@ func setLoading() tea.Msg {
 	return loading(true)
 }
 
-func initialModel(args []string) model {
+func initialModel() model {
 
 	homeDir, err := os.UserHomeDir()
+	confPath := homeDir + "/.jcli.json"
 	if err != nil {
 		return model{
 			errMsg: err,
@@ -91,14 +93,14 @@ func initialModel(args []string) model {
 
 	ti := textinput.New()
 	ti.CharLimit = 156
-	ti.Width = 20
-	confPath := homeDir + "/.jcli.json"
+
 	file, err := os.Open(confPath)
 
 	if errors.Is(err, os.ErrNotExist) { //if file doesn't exist, we know there's no password, so just setting up user to enter their new password
 
 		os.Create(confPath)
 		ti.Placeholder = "enter new password"
+		ti.Width = lipgloss.Width(ti.Placeholder)
 		ti.Focus()
 
 		m := model{
@@ -137,6 +139,7 @@ func initialModel(args []string) model {
 		}
 		ti.Placeholder = "enter password"
 		ti.Focus()
+		ti.Width = lipgloss.Width(ti.Placeholder)
 		m := model{
 
 			pswdInput: pswdEnter{ti: ti, pswdSet: true, pswdEntered: false},
@@ -176,7 +179,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		rootStyle.Width(msg.Width)
-		rootStyle.Height(msg.Height / 3)
+
 		return m, nil
 
 	case tea.KeyMsg:
@@ -187,12 +190,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !m.saving {
 				return m, tea.Quit
 			}
-
 		case tea.KeyEsc:
 			m.action = 1
-
 		}
-
 	}
 
 	//if no special cases, -> just pass off to helper update functions
@@ -215,99 +215,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.action == 4 {
 		return m.psrsUpdate(msg)
 	}
-
-	switch msg := msg.(type) {
-
-	case tea.KeyMsg:
-		switch msg.Type {
-		//general commands
-
-		case tea.KeyEsc:
-			if m.action == 2 || m.action == 3 || m.action == 5 {
-				m.action = 1
-			}
-			/*
-				case tea.KeyEnter:
-					//all the stuff that can happen when enter is clicked!!!!!
-
-					//password segment - if password still isn't input
-
-					if !m.pswdEntered {
-
-						first := sha256.New()
-						if !m.pswdSet {
-							//hashing what was just entered and putting it in file
-							hash, err := hash(m.textInput.Value())
-							if err != nil {
-								m.errMsg = err
-							}
-							m.pswdEntered = true
-							m.pswdHash = hash
-
-							//now putting that into the file
-
-							if err != nil {
-								m.errMsg = err
-								return m, tea.Quit
-							}
-
-							os.WriteFile((m.homeDir + "/.jcli.json"), []byte("{\"JournalHash\":\""+hash+"\"}"), 0644)
-							m.pswdHash = hash
-							m.pswdUnhashed = m.textInput.Value()
-							m.textInput.Reset()
-							m.textInput.Focus()
-							first.Reset()
-							m.action = 1
-						} else {
-							hash, err := hash(m.textInput.Value())
-							if err != nil {
-								m.errMsg = err
-							}
-							if hash != m.pswdHash {
-								m.pswdWrong = true
-								m.textInput.Reset()
-								m.textInput.Focus()
-							} else {
-								//password is correct!
-								m.pswdEntered = true
-								m.pswdUnhashed = m.textInput.Value()
-								m.action = 1
-								m.textInput.Reset()
-
-								//now we have to prepare the list!
-
-								return m.listInit()
-
-							}
-							first.Reset()
-
-						}
-
-					}
-			*/
-
-			//list part
-
-			//set up table here!
-			if m.action == 3 {
-				m.readInit()
-			}
-
-		} //here is where tea.enter ends
-
-	default:
-
-		if m.action == 7 {
-			return m, tea.Quit
-		}
+	if m.action == 7 {
+		return m, tea.Quit
 	}
-	//outside tea.msg here
 
 	return m, cmd
 }
 
 func (m model) View() string {
-
+	rootStyle := rootStyle.Width(m.width - 5).Height(m.height / 3)
 	//just some config stuff
 	if m.errMsg != nil {
 		return m.errMsg.Error()
@@ -344,14 +260,14 @@ func (m model) View() string {
 	}
 
 	//never supposed to end up here
-	return fmt.Sprintf("oops...", m.action)
+	return ("something went wrong." + strconv.Itoa(m.action))
 }
 
 ///flags!
 
 func main() {
 
-	p := tea.NewProgram(initialModel(os.Args))
+	p := tea.NewProgram(initialModel())
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
@@ -365,7 +281,11 @@ func debug(v any) {
 	} else if str, ok := v.(string); ok {
 		d = []byte(str)
 	} else {
-		return
+		d, err = json.Marshal(v)
+		if err != nil {
+			d = []byte(err.Error())
+		}
 	}
+
 	os.WriteFile("./debug.txt", d, os.FileMode(os.O_RDWR))
 }

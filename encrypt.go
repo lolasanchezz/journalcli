@@ -131,6 +131,7 @@ func takeOutData(password string, path string) (jsonEntries, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return jsonEntries{readIn: 1, Tags: make(map[string]int)}, nil
 		}
+		debug(err)
 		return jsonEntries{}, err
 	}
 

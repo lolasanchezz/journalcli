@@ -7,17 +7,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var myCuteBorder = lipgloss.Border{
-	Top:         "._.:*:",
-	Bottom:      "._.:*:",
-	Left:        "|*",
-	Right:       "|*",
-	TopLeft:     "*",
-	TopRight:    "*",
-	BottomLeft:  "*",
-	BottomRight: "*",
-}
-
 /*
 var aggsBoxStyle = lipgloss.NewStyle().
 

@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type pswdEnter struct {
@@ -92,7 +93,7 @@ func (m model) pswdView() string {
 		header = "Enter in password:"
 	}
 
-	fin = header + "\n" + m.pswdInput.ti.View()
+	fin = lipgloss.JoinVertical(lipgloss.Center, header, m.pswdInput.ti.View())
 	return fin
 
 }

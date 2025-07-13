@@ -54,9 +54,11 @@ func (m *model) tabInit() tea.Cmd {
 	return tea.Batch(
 		setLoading,
 		func() tea.Msg {
+			m.tab.loading = true
 			newData, err := takeOutData(m.pswdUnhashed, m.secretsPath)
 			if err != nil {
 				m.errMsg = err
+				m.tab.loading = false
 				return dataLoadedIn{
 					data: jsonEntries{readIn: 1},
 					rows: rowData{rows: []table.Row{{"error loading data", "", "", ""}}},
@@ -64,6 +66,7 @@ func (m *model) tabInit() tea.Cmd {
 			}
 
 			if len(newData.Entries) == 0 {
+
 				return dataLoadedIn{
 					data: jsonEntries{readIn: 1},
 					rows: rowData{rows: []table.Row{{"no data yet!", "", "", ""}}},
@@ -155,8 +158,3 @@ func (m model) tabUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 	return m, tea.Batch(cmds...)
 }
-
-var searchBoxStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("0")).
-	AlignHorizontal(lipgloss.Left).
-	Border(lipgloss.ThickBorder(), true, true)
