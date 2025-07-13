@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type writing struct {
@@ -16,6 +17,7 @@ type writing struct {
 	entryId    int //zero if nothing, index + 1 if we are editing an existing entry
 	body       textarea.Model
 	typingIn   int
+	tagStr     string
 }
 
 //for switching between text inputs
@@ -27,7 +29,8 @@ func (m *model) writeInit() tea.Cmd {
 	m.entryView.body = textarea.New()
 	//formatting
 	m.entryView.titleInput.CharLimit, m.entryView.tagInput.CharLimit = 156, 156
-	m.entryView.titleInput.Width, m.entryView.tagInput.Width = 30, 30
+
+	m.entryView.tagInput.Width, m.entryView.titleInput.Width = lipgloss.Width("tags"), lipgloss.Width(time.Now().Format(timeFormat))
 	//placeholders!
 	m.entryView.titleInput.Placeholder = time.Now().Format(timeFormat)
 	m.entryView.tagInput.Placeholder = "tags..."
@@ -44,14 +47,52 @@ func (m *model) writeInit() tea.Cmd {
 			}
 
 			if tmp.readIn == 1 { //means theres something in the file
-				return dataLoadedIn{data: tmp}
+				//sort through tags
+				var tags string
+
+				if len(tmp.Tags) > 0 {
+					tags = "["
+					l := len(tmp.Tags)
+					for i, _ := range tmp.Tags {
+						l--
+						if l == 0 {
+							tags += i + "]"
+						} else {
+							tags += i + ", "
+						}
+					}
+				} else {
+					tags = "none yet!"
+				}
+				m.entryView.tagStr = tags
+				return dataLoadedIn{data: tmp, msg: tags}
 			} else {
 				return dataLoadedIn{data: jsonEntries{readIn: 1}}
 			}
 
 		}))
+	} else { //data is read in , make tags
+		var tags string
+
+		if len(m.data.Tags) > 0 {
+			tags = "["
+			l := len(m.data.Tags)
+			for i, _ := range m.data.Tags {
+				l--
+				if l == 0 {
+					tags += i + "]"
+				} else {
+					tags += i + ", "
+				}
+			}
+		} else {
+			tags = "none yet!"
+
+		}
+		m.entryView.tagStr = tags
 	}
-	return m.entryView.titleInput.Focus()
+	return nil
+
 }
 
 func uniqueArrMap(bigmap map[string]int, slices ...[]string) map[string]int {
@@ -71,13 +112,15 @@ func uniqueArrMap(bigmap map[string]int, slices ...[]string) map[string]int {
 type dataLoadedIn struct {
 	data jsonEntries
 	rows rowData
+	msg  string
 }
 
 func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd = nil
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
-
+	case dataLoadedIn:
+		m.entryView.tagStr = msg.msg
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC:
@@ -92,11 +135,12 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			//since this returns nothing if the file is empty or doesn't exist, we don't have to worry about other error handling
 			//running an io here
 			return m,
-				tea.Sequence(setLoading, tea.Cmd(
+				tea.Sequence(m.entryView.titleInput.Focus(), setLoading, tea.Cmd(
 					func() tea.Msg {
 						var msg dataLoadedIn
 						if m.data.readIn == 0 {
 							tmp, err := takeOutData(m.pswdUnhashed, m.secretsPath)
+
 							if err != nil {
 								m.errMsg = err
 							}
@@ -157,14 +201,14 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyEsc:
 			m.action = 1
 
-		case tea.KeyLeft:
+		case tea.KeyUp:
 
-			if m.entryView.typingIn != 0 {
+			if (m.entryView.typingIn != 0) && m.entryView.body.Line() == 0 {
 				m.entryView.typingIn--
 
 			}
 
-		case tea.KeyRight:
+		case tea.KeyDown:
 			if m.entryView.typingIn != 2 {
 				m.entryView.typingIn++
 			}
@@ -177,8 +221,8 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.entryView.typingIn == 0 { //on title
 
 		//have to this every time .. //TODO there is definitely a better way
-		m.entryView.tagInput.Blur()
-		m.entryView.body.Blur()
+		m.entryView.tagInput.Cursor.Blur()
+		m.entryView.body.Cursor.Blur()
 
 		m.entryView.titleInput.Focus()
 		m.entryView.titleInput, cmd = m.entryView.titleInput.Update(msg)
@@ -187,8 +231,8 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.entryView.typingIn == 1 { //on tags
 
-		m.entryView.titleInput.Blur()
-		m.entryView.body.Blur()
+		m.entryView.titleInput.Cursor.Blur()
+		m.entryView.body.Cursor.Blur()
 
 		m.entryView.tagInput.Focus()
 		m.entryView.tagInput, cmd = m.entryView.tagInput.Update(msg)
@@ -197,8 +241,8 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.entryView.typingIn == 2 { //on body writing
 
-		m.entryView.titleInput.Blur()
-		m.entryView.tagInput.Blur()
+		m.entryView.titleInput.Cursor.Blur()
+		m.entryView.tagInput.Cursor.Blur()
 
 		m.entryView.body.Focus()
 		m.entryView.body, cmd = m.entryView.body.Update(msg)
@@ -229,31 +273,22 @@ func (m *model) writingView() string {
 	//make tag line rq
 
 	var tags string
-	if len(m.data.Tags) > 0 {
-		tags = "["
-		l := len(m.data.Tags)
-		for i, _ := range m.data.Tags {
-			l--
-			if l == 0 {
-				tags += i + "]"
-			} else {
-				tags += i + ", "
-			}
-		}
-	} else if m.loading {
+	if m.loading {
 		tags = " loading...."
-	} else {
+	} else if m.entryView.tagStr == "" {
 		tags = "none yet!"
+	} else {
+		tags = m.entryView.tagStr
 	}
-	return docStyle.Render(("title:" +
-		m.entryView.titleInput.View() +
-		"\n" +
-		"tags (seperate by comma)" +
-		m.entryView.tagInput.View() +
-		"\n" +
-		"past tags:" +
-		tags +
-		"\nwrite entry below!\n" +
-		m.entryView.body.View() +
-		"\n esc to go back, ctrl + c to quit"))
+	return lipgloss.JoinVertical(lipgloss.Center,
+		("title:" +
+			m.entryView.titleInput.View()),
+		("tags (seperate by comma)" +
+			m.entryView.tagInput.View()),
+
+		("past tags:" +
+			tags),
+		"write entry below!",
+		m.entryView.body.View(),
+		"esc to go back, ctrl + c to quit")
 }

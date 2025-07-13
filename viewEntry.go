@@ -16,13 +16,6 @@ type viewLog struct {
 	date     string
 }
 
-var viewportStyle = lipgloss.NewStyle().
-	BorderStyle(myCuteBorder)
-
-var headerStyle = lipgloss.NewStyle().
-	AlignHorizontal(lipgloss.Center).
-	Italic(true)
-
 func (m *model) setRow(row table.Row) int {
 	m.tab.eView.header = row[0]
 	m.tab.eView.date = row[1]

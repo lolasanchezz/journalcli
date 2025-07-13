@@ -139,6 +139,7 @@ func takeOutData(password string, path string) (jsonEntries, error) {
 		log.Fatal(err)
 	}
 	decData.readIn = 1 //read in successfully
+
 	return decData, nil
 
 }
@@ -164,4 +165,33 @@ func putInFileCmd(data jsonEntries, password string, path string) tea.Cmd {
 		}
 		return errMsg{err: nil}
 	}
+}
+
+func takeOutConfig(path string) (conf, error) {
+
+	infoB, err := os.ReadFile(path + "/.jcli.json")
+
+	if err != nil {
+		if os.IsNotExist(err) {
+			os.Create(path + "/.jcli.json")
+			return conf{}, nil
+		}
+		return conf{}, err
+	}
+	var info conf
+	json.Unmarshal(infoB, &info)
+	return info, nil
+}
+
+func putInConfig(path string, conf conf) error {
+
+	data, err := json.Marshal(conf)
+	if err != nil {
+		return err
+	}
+	err = os.WriteFile(path, data, os.FileMode(os.O_RDWR))
+	if err != nil {
+		return err
+	}
+	return nil
 }

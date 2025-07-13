@@ -11,7 +11,7 @@ features and todo lists
     - [x] tagging
     - [ ] option to throw in different media
 - viewing entries
-    - [ ] be able to load in past entry to edit
+    - [x] be able to load in past entry to edit
     - [x] be able to search through entries based on tags | date
 
 - misc.

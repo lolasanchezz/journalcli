@@ -18,13 +18,14 @@ var myCuteBorder = lipgloss.Border{
 	BottomRight: "*",
 }
 
+/*
 var aggsBoxStyle = lipgloss.NewStyle().
-	Border(myCuteBorder).
+
 	Padding(2).
 	Width(50).
 	AlignVertical(lipgloss.Center).
 	AlignHorizontal(lipgloss.Center)
-
+*/
 var header = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(lipgloss.Color("#ffffff"))
@@ -45,11 +46,11 @@ func (m *model) viewAggs() string {
 		m.data = tmp
 		if tmp.readIn == 0 {
 			m.data.readIn = 1
-			return aggsBoxStyle.Render(header.Render("no data yet!"))
+			return header.Render("no data yet!")
 		}
 
 	}
-	aggsBoxStyle.Width(m.width / 2)
+
 	allEntries := m.data.Entries
 	sum := len(allEntries)
 	var averageLength int
@@ -77,6 +78,6 @@ func (m *model) viewAggs() string {
 		text.Render("most used tag: "+strings.Join(popTag, ", ")),
 	)
 
-	return aggsBoxStyle.Render(content)
+	return content
 
 }

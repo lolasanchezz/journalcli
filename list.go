@@ -66,6 +66,9 @@ func (m model) listUpdate(msg tea.Msg) (model, tea.Cmd) {
 	if m.action == 3 {
 		return m, m.readInit()
 	}
+	if m.action == 4 {
+		return m, m.psrsInit()
+	}
 	if m.action == 7 {
 		return m, tea.Quit
 	}
@@ -76,6 +79,8 @@ func (m model) listUpdate(msg tea.Msg) (model, tea.Cmd) {
 
 func (m *model) listView() string {
 	var s string
+	var sArr []string
+	sArr = append(sArr, "what would you like to do?")
 	for i, choice := range m.list.choices {
 
 		// Is the cursor pointing at this choice?
@@ -85,11 +90,20 @@ func (m *model) listView() string {
 		}
 
 		// Render the row
-		s += (cursor + choice + "\n")
+		sArr = append(sArr, (cursor + choice))
 	}
 	if m.saving {
-		s = s + ("\n saving entry " + m.list.spinner.View())
+		sArr = append(sArr, ("saving entry " + m.list.spinner.View()))
 	}
-	return docStyle.Render("what would you like to do? \n" + s)
 
+	len := len(sArr)
+	reverseArr := make([]string, len)
+	var index int
+	for i, val := range sArr {
+		index = len - (i + 1)
+		reverseArr[index] = val
+	}
+
+	s = lipgloss.JoinVertical(lipgloss.Center, sArr...)
+	return s
 }

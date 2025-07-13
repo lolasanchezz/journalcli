@@ -136,7 +136,18 @@ func (m model) tabUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if rowI == 999999 {
 				log.Panic("couldn't find rows in table")
 			}
-			m.tab.table.SetRows(slices.Delete(rows, rowI, rowI+1))
+			rows = slices.Delete(rows, rowI, rowI+1)
+			//then update index of rows
+
+			for rowI < len(rows) {
+				i, _ := strconv.Atoi(rows[rowI][4])
+				rows[rowI][4] = strconv.Itoa(i - 1)
+				rowI++
+			}
+
+			m.tab.table.SetRows(rows)
+			//debugging
+
 		}
 	}
 

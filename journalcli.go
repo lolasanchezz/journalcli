@@ -1,26 +1,17 @@
 package main
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
-
-var docStyle = lipgloss.NewStyle().
-	Margin(1, 2).
-	PaddingTop(2).
-	PaddingLeft(4).
-	Align(lipgloss.Left)
 
 // constant for formatting time
 var timeFormat = "Mon Jan 2 3:04pm"
@@ -51,13 +42,12 @@ type jsonEntries struct { //json struct for single entry
 type model struct {
 	//entering password part
 
-	pswdSet      bool            // does password exist in .env?
-	pswdEntered  bool            // has user entered in correct password?
-	pswdHash     string          // password in .env
-	pswdUnhashed string          // correct password entered in by user (real password)
-	pswdWrong    bool            // just showing whether entered in password is incorrect (temporary flash "wrong! in header")
-	errMsg       error           //for passing along errors to stdout
-	textInput    textinput.Model //text input for password
+	pswdHash     string // password in .env
+	pswdUnhashed string // correct password entered in by user (real password)
+
+	errMsg    error
+	pswdInput pswdEnter //for passing along errors to stdout
+
 	//general stuff
 	homeDir string //this just gets used so much might as well
 	config  conf
@@ -73,13 +63,16 @@ type model struct {
 
 	tab         viewDat
 	secretsPath string
-
+	confPath    string
 	//input
 	entryView writing
 
 	//ui
 	width  int
 	height int
+
+	//pswd reset
+	psRs pswdReset
 }
 type loading bool
 
@@ -99,52 +92,26 @@ func initialModel(args []string) model {
 	ti := textinput.New()
 	ti.CharLimit = 156
 	ti.Width = 20
-
-	//so that action cna be pre-set when testing so that password doesn't have to be entered
-	if len(os.Args) > 1 { //will HAVE to delete this later just bypasses whole password part
-
-		pswdHash, _ := hash("password")
-		action, _ := strconv.Atoi(args[1])
-		m := model{
-
-			textInput:    ti,
-			pswdHash:     pswdHash,
-			pswdSet:      true,
-			pswdUnhashed: "password",
-			pswdEntered:  true,
-			errMsg:       nil,
-			action:       action,
-			homeDir:      homeDir,
-			secretsPath:  homeDir + "/.secrets",
-			//really just a hack
-			list: picking{choices: []string{"write entries", "read entries", "change password", "look at analytics", "settings", "logout"}, cursor: 0},
-		}
-		if action == 3 {
-			m.readInit()
-		}
-		return m
-
-	}
-
-	file, err := os.Open((homeDir + "/.jcli.json"))
+	confPath := homeDir + "/.jcli.json"
+	file, err := os.Open(confPath)
 
 	if errors.Is(err, os.ErrNotExist) { //if file doesn't exist, we know there's no password, so just setting up user to enter their new password
 
-		os.Create((homeDir + "/.jcli.json"))
+		os.Create(confPath)
 		ti.Placeholder = "enter new password"
 		ti.Focus()
 
 		m := model{
+			confPath:  confPath,
+			pswdInput: pswdEnter{ti: ti, pswdSet: false, pswdEntered: false},
+			pswdHash:  "",
 
-			textInput:    ti,
-			pswdHash:     "",
-			pswdSet:      false,
 			pswdUnhashed: "",
-			pswdEntered:  false,
-			errMsg:       nil,
-			action:       0,
-			homeDir:      homeDir,
-			secretsPath:  homeDir + "/.secrets",
+
+			errMsg:      nil,
+			action:      0,
+			homeDir:     homeDir,
+			secretsPath: homeDir + "/.secrets",
 		}
 
 		return m
@@ -171,17 +138,18 @@ func initialModel(args []string) model {
 		ti.Placeholder = "enter password"
 		ti.Focus()
 		m := model{
-			textInput: ti,
 
-			pswdHash:     config.JournalHash,
-			pswdSet:      true,
+			pswdInput: pswdEnter{ti: ti, pswdSet: true, pswdEntered: false},
+			confPath:  confPath,
+			pswdHash:  config.JournalHash,
+
 			pswdUnhashed: "",
-			pswdEntered:  false,
-			config:       config,
-			errMsg:       nil,
-			action:       0,
-			homeDir:      homeDir,
-			secretsPath:  homeDir + "/.secrets",
+
+			config:      config,
+			errMsg:      nil,
+			action:      0,
+			homeDir:     homeDir,
+			secretsPath: homeDir + "/.secrets",
 		}
 
 		return m
@@ -197,7 +165,6 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	//writing the part where password hasn't been entered yet
 	var cmd tea.Cmd = nil
-	var cmds []tea.Cmd
 
 	//special cases
 	switch msg := msg.(type) {
@@ -208,6 +175,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		rootStyle.Width(msg.Width)
+		rootStyle.Height(msg.Height / 3)
+		return m, nil
+
 	case tea.KeyMsg:
 
 		switch msg.Type {
@@ -225,6 +196,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	//if no special cases, -> just pass off to helper update functions
+	if m.action == 0 {
+		return m.pswdUpdate(msg)
+	}
 	if m.action == 1 {
 		return m.listUpdate(msg)
 	}
@@ -235,8 +209,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.action == 3 {
 		return m.readUpdate(msg)
-		cmds = append(cmds, cmd)
-		return m, tea.Batch(cmds...)
+
+	}
+
+	if m.action == 4 {
+		return m.psrsUpdate(msg)
 	}
 
 	switch msg := msg.(type) {
@@ -249,98 +226,65 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.action == 2 || m.action == 3 || m.action == 5 {
 				m.action = 1
 			}
+			/*
+				case tea.KeyEnter:
+					//all the stuff that can happen when enter is clicked!!!!!
 
-		case tea.KeyCtrlS:
-			//saved new password
-			if m.action == 4 {
-				//have to take old data, reencrypt it with new password, put it back,
-				// then rehash password and put that back too
-				newPswd := m.textInput.Value()
-				if data, err := takeOutData(m.pswdUnhashed, m.homeDir); len(data.Entries) != 0 {
-					if err != nil {
-						m.errMsg = err
-						return m, nil
-					}
-					//we know there's data, now we have to reset the password
-					err = putInFile(data, newPswd, m.secretsPath)
-					if err != nil {
-						m.errMsg = err
-						return m, nil
-					}
-				}
-				//now writing pswd hash into file
-				newHash, err := hash(newPswd)
-				m.pswdHash = newHash
-				if err != nil {
-					m.errMsg = err
-					return m, nil
-				}
-				//TODO when more config options are added in, this will have to load in the config file first then change it
-				//to avoid overwriting the rest of the config
-				os.WriteFile((m.homeDir + "/.jcli.json"), []byte("{\"JournalHash\":\""+newHash+"\"}"), 0644)
-				m.pswdUnhashed = newPswd
+					//password segment - if password still isn't input
 
-				//now that that's all done, just return back to user
-				m.textInput.Reset()
+					if !m.pswdEntered {
 
-				m.action = 1
-				return m.listInit()
-			}
+						first := sha256.New()
+						if !m.pswdSet {
+							//hashing what was just entered and putting it in file
+							hash, err := hash(m.textInput.Value())
+							if err != nil {
+								m.errMsg = err
+							}
+							m.pswdEntered = true
+							m.pswdHash = hash
 
-		case tea.KeyEnter:
-			//all the stuff that can happen when enter is clicked!!!!!
+							//now putting that into the file
 
-			//password segment - if password still isn't input
-			if !m.pswdEntered {
+							if err != nil {
+								m.errMsg = err
+								return m, tea.Quit
+							}
 
-				first := sha256.New()
-				if !m.pswdSet {
-					//hashing what was just entered and putting it in file
-					hash, err := hash(m.textInput.Value())
-					if err != nil {
-						m.errMsg = err
-					}
-					m.pswdEntered = true
-					m.pswdHash = hash
+							os.WriteFile((m.homeDir + "/.jcli.json"), []byte("{\"JournalHash\":\""+hash+"\"}"), 0644)
+							m.pswdHash = hash
+							m.pswdUnhashed = m.textInput.Value()
+							m.textInput.Reset()
+							m.textInput.Focus()
+							first.Reset()
+							m.action = 1
+						} else {
+							hash, err := hash(m.textInput.Value())
+							if err != nil {
+								m.errMsg = err
+							}
+							if hash != m.pswdHash {
+								m.pswdWrong = true
+								m.textInput.Reset()
+								m.textInput.Focus()
+							} else {
+								//password is correct!
+								m.pswdEntered = true
+								m.pswdUnhashed = m.textInput.Value()
+								m.action = 1
+								m.textInput.Reset()
 
-					//now putting that into the file
+								//now we have to prepare the list!
 
-					if err != nil {
-						m.errMsg = err
-						return m, tea.Quit
-					}
+								return m.listInit()
 
-					os.WriteFile((m.homeDir + "/.jcli.json"), []byte("{\"JournalHash\":\""+hash+"\"}"), 0644)
-					m.pswdHash = hash
-					m.pswdUnhashed = m.textInput.Value()
-					m.textInput.Reset()
-					m.textInput.Focus()
-					first.Reset()
-				} else {
-					hash, err := hash(m.textInput.Value())
-					if err != nil {
-						m.errMsg = err
-					}
-					if hash != m.pswdHash {
-						m.pswdWrong = true
-						m.textInput.Reset()
-						m.textInput.Focus()
-					} else {
-						//password is correct!
-						m.pswdEntered = true
-						m.pswdUnhashed = m.textInput.Value()
-						m.action = 1
-						m.textInput.Reset()
+							}
+							first.Reset()
 
-						//now we have to prepare the list!
-						return m.listInit()
+						}
 
 					}
-					first.Reset()
-
-				}
-
-			}
+			*/
 
 			//list part
 
@@ -358,15 +302,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	//outside tea.msg here
-	if m.action == 0 || m.action == 4 { //the two options with one line inputs
-		m.textInput, cmd = m.textInput.Update(msg)
-	}
 
 	return m, cmd
 }
 
 func (m model) View() string {
-	var fin string
+
 	//just some config stuff
 	if m.errMsg != nil {
 		return m.errMsg.Error()
@@ -375,54 +316,38 @@ func (m model) View() string {
 		return m.debug
 	}
 	//password segment!!!!!!!!!!!
-	if !m.pswdEntered {
-		var header string
-		if !m.pswdSet {
-			header = "welcome! a password wasn't found in this directory, so enter in a new one!"
-		} else if m.pswdWrong && (m.textInput.Value() == "") {
-			header = "Wrong password! Try again"
-		} else {
-			m.pswdWrong = false
-			header = "Enter in password:"
-		}
-
-		fin = header + "\n" + m.textInput.View()
-		return docStyle.Render(fin)
-	}
 
 	//password is entered here -> time to get into the actual app!
-
+	if m.action == 0 {
+		return rootStyle.Render(m.pswdView())
+	}
 	if m.action == 1 {
 
-		return m.listView()
+		return rootStyle.Render(m.listView())
 	}
 
 	if m.action == 2 {
-		return m.writingView()
+		return rootStyle.Render(m.writingView())
 	}
 
 	if m.action == 3 {
-		return m.readView()
+		return rootStyle.Render(m.readView())
 	}
 
 	//resetting password
 	if m.action == 4 {
-		return docStyle.Render(
-			"write new password here: \n",
-			m.textInput.View(),
-			"\n esc to go back, ctrl+s to save",
-		)
+		return rootStyle.Render(m.psrsView())
 	}
 
 	if m.action == 5 {
-		return m.viewAggs()
+		return rootStyle.Render(m.viewAggs())
 	}
 
 	//never supposed to end up here
 	return fmt.Sprintf("oops...", m.action)
 }
 
-//flags!
+///flags!
 
 func main() {
 
@@ -430,4 +355,17 @@ func main() {
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func debug(v any) {
+	var d []byte
+	if err, ok := v.(error); ok {
+		str := err.Error()
+		d = []byte(str)
+	} else if str, ok := v.(string); ok {
+		d = []byte(str)
+	} else {
+		return
+	}
+	os.WriteFile("./debug.txt", d, os.FileMode(os.O_RDWR))
 }

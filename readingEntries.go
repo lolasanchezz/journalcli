@@ -32,11 +32,19 @@ func (m *model) readInit() tea.Cmd {
 
 }
 
+// enter alt screen
+
+//styles
+
 func (m *model) readView() string {
 
-	str := lipgloss.JoinHorizontal(lipgloss.Top, m.tab.table.View(), m.searchView())
+	str := lipgloss.JoinHorizontal(lipgloss.Top,
+		inlinePadding.Render(m.tab.table.View()),
+		inlinePadding.Render(m.searchView()))
 	if m.tab.maxViews == 3 {
-		return lipgloss.JoinVertical(lipgloss.Bottom, m.viewportView(), str)
+		return lipgloss.JoinVertical(lipgloss.Bottom,
+			inlinePadding.Render(m.viewportView()),
+			inlinePadding.Render(str))
 	}
 	return str
 }
@@ -52,6 +60,7 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		// Update column widths based on new width
 		// Reserve room for spacing, search box, etc.
+
 		usableWidth := m.width / 2
 		hiddenCols := 2
 		numCols := len(m.tab.table.Columns()) - hiddenCols //have to exclude two hidden columns
@@ -67,6 +76,12 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.tab.table.SetColumns(cols)
 
+		//now have to adjust the table height depending on whether the viewport is enabled
+		if m.tab.maxViews == 3 {
+			m.tab.table.SetHeight(m.height / 3)
+		} else {
+			m.tab.table.SetHeight(m.height / 2)
+		}
 		return m, nil
 
 	case tea.KeyMsg:
