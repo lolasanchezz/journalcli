@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -16,6 +17,8 @@ import (
 
 // constant for formatting time
 var timeFormat = "Mon Jan 2 3:04pm"
+var heightPerc = 0.5 //remove later!
+var widthPerc = 0.9  //remove later!
 
 // will take in a password and store the hash in a config file - if no such variable exists, offer to make a new one. the password will
 // be the key to decrypt the file with the journal entries. a password is only required to read the past entries, not current
@@ -178,7 +181,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		rootStyle.Width(msg.Width)
+		rootStyle = rootStyle.Width(int(float64(msg.Width) * widthPerc)).Height(int(float64(msg.Height) * heightPerc))
 
 		return m, nil
 
@@ -280,6 +283,12 @@ func debug(v any) {
 		d = []byte(str)
 	} else if str, ok := v.(string); ok {
 		d = []byte(str)
+	} else if arr, ok := v.(table.Row); ok {
+		var s string
+		for _, val := range arr {
+			s += val + " "
+		}
+		d = []byte(s)
 	} else {
 		d, err = json.Marshal(v)
 		if err != nil {
@@ -287,5 +296,5 @@ func debug(v any) {
 		}
 	}
 
-	os.WriteFile("./debug.txt", d, os.FileMode(os.O_RDWR))
+	_ = os.WriteFile("./debug.txt", d, 0644)
 }

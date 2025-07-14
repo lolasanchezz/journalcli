@@ -188,7 +188,7 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 							oldEntry.Msg = m.entryView.body.Value()
 							oldEntry.Tags = newTags
 							pastEntries = msg.data.Entries
-							pastEntries[m.entryView.entryId] = oldEntry
+							pastEntries[m.entryView.entryId-1] = oldEntry
 						} else {
 							pastEntries = append(msg.data.Entries, entry{Title: titleStr, Msg: m.entryView.body.Value(), Date: time.Now(), Tags: newTags})
 						}

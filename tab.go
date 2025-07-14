@@ -21,7 +21,7 @@ type rowData struct {
 }
 
 func (m *model) tabInit() tea.Cmd {
-	var width = 25
+	var width = rootStyle.GetWidth() / 3
 	columns := []table.Column{
 		{Title: "title", Width: width},
 		{Title: "date written", Width: width},
@@ -34,7 +34,7 @@ func (m *model) tabInit() tea.Cmd {
 	m.tab.table = table.New(
 		table.WithColumns(columns),
 		table.WithRows([]table.Row{{"loading rows in", "", ""}}),
-		table.WithHeight(m.height/4),
+		table.WithHeight(rootStyle.GetHeight()),
 	)
 
 	// Set table styles
@@ -49,12 +49,12 @@ func (m *model) tabInit() tea.Cmd {
 		Background(lipgloss.Color("57")).
 		Bold(false)
 	m.tab.table.SetStyles(s)
-
+	m.tab.loading = true
 	// Batch loading state + actual data load
 	return tea.Batch(
 		setLoading,
 		func() tea.Msg {
-			m.tab.loading = true
+
 			newData, err := takeOutData(m.pswdUnhashed, m.secretsPath)
 			if err != nil {
 				m.errMsg = err

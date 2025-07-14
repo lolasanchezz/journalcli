@@ -6,20 +6,20 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func (m *model) searchInit() tea.Cmd {
 	m.tab.tiS = textinput.New()
 	m.tab.tagS = textinput.New()
 	m.tab.daS = textinput.New()
-	searchBoxStyle.Width(m.width / 2)
 	m.tab.tiS.Placeholder = "search with title"
 	m.tab.tagS.Placeholder = "search with tags"
 	m.tab.daS.Placeholder = "search with date"
 
-	m.tab.tiS.Width = 20
-	m.tab.tagS.Width = 20
-	m.tab.daS.Width = 20
+	m.tab.tiS.Width = searchBoxStyle.GetWidth()
+	m.tab.tagS.Width = searchBoxStyle.GetWidth()
+	m.tab.daS.Width = searchBoxStyle.GetWidth()
 
 	return nil
 }
@@ -63,21 +63,21 @@ func (m *model) searchUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	*p = updated
 
 	m.filter(m.tab.tiS.Value(), m.tab.daS.Value(), m.tab.tagS.Value())
+
 	//m.tab.table.SetRows(m.tab.filteredRows.rows)
 	return m, cmd
 }
 
 func (m *model) searchView() string {
-
-	return searchBoxStyle.Render(
-		"search options: \n",
-		"search title:",
+	m.tab.tiS.Width = searchBoxStyle.GetWidth()
+	m.tab.tagS.Width = searchBoxStyle.GetWidth()
+	m.tab.daS.Width = searchBoxStyle.GetWidth()
+	return searchBoxStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
+		"search options",
 		m.tab.tiS.View(),
-		"\n search date:",
 		m.tab.daS.View(),
-		"\n search tags",
 		m.tab.tagS.View(),
-	)
+	))
 
 }
 

@@ -38,16 +38,26 @@ func (m *model) readInit() tea.Cmd {
 //styles
 
 func (m *model) readView() string {
+	totalWidth := float64(m.width)
+	searchBoxStyle = searchBoxStyle.Width(int(totalWidth * 0.1))
 
-	str := lipgloss.JoinHorizontal(lipgloss.Top,
-		inlinePadding.Render(m.tab.table.View()),
-		inlinePadding.Render(m.searchView()))
-	if m.tab.maxViews == 3 {
-		return lipgloss.JoinVertical(lipgloss.Bottom,
-			inlinePadding.Render(m.viewportView()),
-			inlinePadding.Render(str))
+	if m.tab.maxViews == 2 {
+		m.sizeTable(0.5)
+		//return m.tab.table.View()
+		return lipgloss.JoinHorizontal(lipgloss.Top,
+			inlinePadding.Render(m.tab.table.View()),
+			inlinePadding.Render(m.searchView()))
 	}
-	return str
+	if m.tab.maxViews == 3 {
+		m.sizeTable(0.35)
+		viewportStyle = viewportStyle.Width(int(totalWidth * 0.4))
+		return lipgloss.JoinHorizontal(lipgloss.Left,
+			inlinePadding.Render(m.tab.table.View()),
+			inlinePadding.Render(m.searchView()),
+			inlinePadding.Render(m.viewportView()),
+		)
+	}
+	return ""
 }
 
 func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -60,30 +70,9 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.tab.table.Focus()
 		m.tab.loading = false
 	case tea.WindowSizeMsg:
-		// Update column widths based on new width
-		// Reserve room for spacing, search box, etc.
+		totalWidth := float64(m.width)
+		searchBoxStyle = searchBoxStyle.Width(int(totalWidth * 0.2))
 
-		usableWidth := m.width / 2
-		hiddenCols := 2
-		numCols := len(m.tab.table.Columns()) - hiddenCols //have to exclude two hidden columns
-		colWidth := usableWidth / numCols
-
-		cols := m.tab.table.Columns()
-		for i := range cols {
-			if i >= numCols {
-				break
-
-			}
-			cols[i].Width = colWidth
-		}
-		m.tab.table.SetColumns(cols)
-
-		//now have to adjust the table height depending on whether the viewport is enabled
-		if m.tab.maxViews == 3 {
-			m.tab.table.SetHeight(m.height / 3)
-		} else {
-			m.tab.table.SetHeight(m.height / 2)
-		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -102,7 +91,7 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "v":
-			if !(m.tab.view == 2) && !m.loading {
+			if !(m.tab.view == 1) && !m.tab.loading {
 				if m.tab.maxViews == 3 {
 					m.tab.maxViews = 2
 					m.tab.viewsEnabled[2] = false
@@ -156,4 +145,25 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m *model) sizeTable(w float64) {
+	usableWidth := float64(rootStyle.GetWidth()) * w
+	// Update column widths based on new width
+	// Reserve room for spacing, search box, etc.
+
+	hiddenCols := 2
+	numCols := len(m.tab.table.Columns()) - hiddenCols //have to exclude two hidden columns
+	colWidth := usableWidth / float64(numCols)
+
+	cols := m.tab.table.Columns()
+	for i := range cols {
+		if i >= numCols {
+			break
+
+		}
+		cols[i].Width = int(colWidth)
+	}
+	m.tab.table.SetColumns(cols)
+
 }

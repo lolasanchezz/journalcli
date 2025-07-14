@@ -35,3 +35,4 @@ features and todo lists
 - [ ] get rid of secondary 'hidden data' struct in rowsData struct
 - [ ] add a "are you sure you want to delete?" in table
 - [ ] add a pointer to each json entry in the tab data
+- [ ] add a maxwidth function to size the columns of the table to the biggest text line in there
