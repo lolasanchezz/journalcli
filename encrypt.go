@@ -170,11 +170,11 @@ func putInFileCmd(data jsonEntries, password string, path string) tea.Cmd {
 
 func takeOutConfig(path string) (conf, error) {
 
-	infoB, err := os.ReadFile(path + "/.jcli.json")
+	infoB, err := os.ReadFile(path)
 
 	if err != nil {
 		if os.IsNotExist(err) {
-			os.Create(path + "/.jcli.json")
+			os.Create(path)
 			return conf{}, nil
 		}
 		return conf{}, err

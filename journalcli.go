@@ -22,9 +22,6 @@ var widthPerc = 0.9  //remove later!
 
 // will take in a password and store the hash in a config file - if no such variable exists, offer to make a new one. the password will
 // be the key to decrypt the file with the journal entries. a password is only required to read the past entries, not current
-type conf struct {
-	JournalHash string `json:"JournalHash"`
-}
 
 // setting up the list part
 
@@ -77,6 +74,9 @@ type model struct {
 
 	//pswd reset
 	psRs pswdReset
+
+	//settings
+	settings settingInp
 }
 type loading bool
 
@@ -218,6 +218,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.action == 4 {
 		return m.psrsUpdate(msg)
 	}
+
+	if m.action == 6 {
+		return m.settingsUpdate(msg)
+	}
 	if m.action == 7 {
 		return m, tea.Quit
 	}
@@ -260,6 +264,10 @@ func (m model) View() string {
 
 	if m.action == 5 {
 		return rootStyle.Render(m.viewAggs())
+	}
+
+	if m.action == 6 {
+		return rootStyle.Render(m.settingsView())
 	}
 
 	//never supposed to end up here

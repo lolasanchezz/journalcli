@@ -69,6 +69,9 @@ func (m model) listUpdate(msg tea.Msg) (model, tea.Cmd) {
 	if m.action == 4 {
 		return m, m.psrsInit()
 	}
+	if m.action == 6 {
+		return m.settingsInit()
+	}
 	if m.action == 7 {
 		return m, tea.Quit
 	}

@@ -51,6 +51,7 @@ func (m *model) viewportView() string {
 	//cheap i know
 	//if m.tab.view != 1 {
 	selEntry := m.tab.table.SelectedRow()
+
 	if selEntry != nil {
 
 		if len(selEntry) == 0 {

@@ -32,7 +32,7 @@ func (m *model) writeInit() tea.Cmd {
 	m.entryView.titleInput.CharLimit, m.entryView.tagInput.CharLimit = 156, 156
 	m.entryView.body.SetWidth(int(float64(m.width) * 0.7))
 
-	m.entryView.tagInput.Width, m.entryView.titleInput.Width = lipgloss.Width("tags"), lipgloss.Width(time.Now().Format(timeFormat))
+	m.entryView.tagInput.Width, m.entryView.titleInput.Width = 50, lipgloss.Width(time.Now().Format(timeFormat))
 	//placeholders!
 	m.entryView.titleInput.Placeholder = time.Now().Format(timeFormat)
 	m.entryView.tagInput.Placeholder = "tags..."
@@ -116,6 +116,7 @@ type dataLoadedIn struct {
 	data jsonEntries
 	rows rowData
 	msg  string
+	msgi int
 }
 
 func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {

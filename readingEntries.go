@@ -50,12 +50,15 @@ func (m *model) readView() string {
 	}
 	if m.tab.maxViews == 3 {
 		m.sizeTable(0.35)
-		viewportStyle = viewportStyle.Width(int(totalWidth * 0.4))
-		return lipgloss.JoinHorizontal(lipgloss.Left,
-			inlinePadding.Render(m.tab.table.View()),
-			inlinePadding.Render(m.searchView()),
-			inlinePadding.Render(m.viewportView()),
-		)
+		searchBoxStyle = searchBoxStyle.Width(m.tab.table.Width())
+		//m.tab.eView.viewPort.Width = (int(float64(m.width) * 0.6))
+		///viewportStyle = viewportStyle.Width(int(float64(m.width) * 0.6))
+		//debug(m.tab.table.Width())
+		return lipgloss.JoinVertical(lipgloss.Center, m.searchView(), inlinePadding.Render(m.tab.table.View()))
+		/*return lipgloss.JoinHorizontal(lipgloss.Left,
+		lipgloss.JoinVertical(lipgloss.Center, inlinePadding.Render(m.searchView()), inlinePadding.Render(m.tab.table.View())),
+		inlinePadding.Render(m.viewportView()))
+		*/
 	}
 	return ""
 }
@@ -68,6 +71,9 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.tab.rows = msg.rows
 		m.tab.table.SetRows(msg.rows.rows)
 		m.tab.table.Focus()
+		if msg.msgi != 0 {
+			m.tab.table.SetHeight(msg.msgi)
+		}
 		m.tab.loading = false
 	case tea.WindowSizeMsg:
 		totalWidth := float64(m.width)
@@ -121,6 +127,17 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				m.action = 2
 			}
+		}
+		viewportStyle = viewportStyle.BorderForeground(lipgloss.Color(first))
+		//searchBoxStyle = searchBoxStyle.UnsetBackground()
+		m.tab.table.Blur()
+		if m.tab.view == 0 {
+			m.tab.table.Focus()
+
+		} else if m.tab.view == 1 {
+			//searchBoxStyle = searchBoxStyle.Background(lipgloss.Color(dark))
+		} else if m.tab.view == 2 {
+			viewportStyle = viewportStyle.BorderForeground(lipgloss.Color("#0000ff"))
 		}
 
 	} //otherwise, just pass onto helping functions

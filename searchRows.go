@@ -17,7 +17,7 @@ func (m *model) searchInit() tea.Cmd {
 	m.tab.tagS.Placeholder = "search with tags"
 	m.tab.daS.Placeholder = "search with date"
 
-	m.tab.tiS.Width = searchBoxStyle.GetWidth()
+	m.tab.tiS.Width = 20
 	m.tab.tagS.Width = searchBoxStyle.GetWidth()
 	m.tab.daS.Width = searchBoxStyle.GetWidth()
 

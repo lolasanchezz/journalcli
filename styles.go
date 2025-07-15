@@ -47,7 +47,7 @@ var (
 			Foreground(lipgloss.Color(light)).
 			AlignHorizontal(lipgloss.Center).
 			AlignVertical(lipgloss.Center).
-			Padding(1)
+			Padding()
 
 	headerStyle = lipgloss.NewStyle().
 			AlignHorizontal(lipgloss.Center).

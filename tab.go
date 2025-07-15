@@ -29,12 +29,12 @@ func (m *model) tabInit() tea.Cmd {
 		{Title: "hidden", Width: 0},
 		{Title: "idhidden", Width: 0},
 	}
-
+	//2 for header
 	// Show loading row first
 	m.tab.table = table.New(
 		table.WithColumns(columns),
 		table.WithRows([]table.Row{{"loading rows in", "", ""}}),
-		table.WithHeight(rootStyle.GetHeight()),
+		table.WithHeight(5),
 	)
 
 	// Set table styles
@@ -62,6 +62,7 @@ func (m *model) tabInit() tea.Cmd {
 				return dataLoadedIn{
 					data: jsonEntries{readIn: 1},
 					rows: rowData{rows: []table.Row{{"error loading data", "", "", ""}}},
+					msgi: 3,
 				}
 			}
 
@@ -70,6 +71,7 @@ func (m *model) tabInit() tea.Cmd {
 				return dataLoadedIn{
 					data: jsonEntries{readIn: 1},
 					rows: rowData{rows: []table.Row{{"no data yet!", "", "", ""}}},
+					msgi: 3,
 				}
 			}
 			var rows rowData
@@ -90,9 +92,12 @@ func (m *model) tabInit() tea.Cmd {
 				}
 			}
 
+			//height of table
+			tabHeight := len(newData.Entries) + 3
 			return dataLoadedIn{
 				data: newData,
 				rows: rows,
+				msgi: tabHeight,
 			}
 		},
 	)
