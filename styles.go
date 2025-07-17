@@ -4,19 +4,33 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+var defaultStyles = conf{
+	TextColor:    "#F4DBCC",
+	BordCol:      "#F4DBCC",
+	SecTextColor: "#F4DBCC",
+	Width:        0.9,
+	Height:       0.5,
+}
+
 type styles struct {
-	light      string  //light color
-	dark       string  //dark color
-	first      string  //first/text color
-	second     string  //secondary text color
-	widthPerc  float64 //percentage of terminal width
-	heightPerc float64 //percentage of terminal height
+	root     lipgloss.Style
+	viewport lipgloss.Style
+	header   lipgloss.Style
+	filter   lipgloss.Style
+}
+
+func (m *model) setStyles(new conf) {
+	m.styles.root.BorderForeground(lipgloss.Color(new.BordCol))
+	m.styles.root.Foreground(lipgloss.Color(new.TextColor))
+	m.styles.viewport.Foreground(lipgloss.Color(new.TextColor))
+	m.styles.filter.Foreground(lipgloss.Color(new.TextColor))
+
 }
 
 var (
 
 	//default colors
-	light  = "#699ACC"
+	light  = "#F4DBCC"
 	dark   = "#61AA07"
 	first  = "#F4DBCC"
 	second = "#394032"

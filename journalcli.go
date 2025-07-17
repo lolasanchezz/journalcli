@@ -71,7 +71,7 @@ type model struct {
 	//ui
 	width  int
 	height int
-
+	styles styles
 	//pswd reset
 	psRs pswdReset
 
@@ -85,6 +85,9 @@ func setLoading() tea.Msg {
 }
 
 func initialModel() model {
+
+	//make the default styles
+	defStyles := styles{root: rootStyle, viewport: viewportStyle, header: headerStyle, filter: searchBoxStyle}
 
 	homeDir, err := os.UserHomeDir()
 	confPath := homeDir + "/.jcli.json"
@@ -107,16 +110,16 @@ func initialModel() model {
 		ti.Focus()
 
 		m := model{
-			confPath:  confPath,
-			pswdInput: pswdEnter{ti: ti, pswdSet: false, pswdEntered: false},
-			pswdHash:  "",
-
+			confPath:     confPath,
+			pswdInput:    pswdEnter{ti: ti, pswdSet: false, pswdEntered: false},
+			pswdHash:     "",
+			config:       defaultStyles,
 			pswdUnhashed: "",
-
-			errMsg:      nil,
-			action:      0,
-			homeDir:     homeDir,
-			secretsPath: homeDir + "/.secrets",
+			styles:       defStyles,
+			errMsg:       nil,
+			action:       0,
+			homeDir:      homeDir,
+			secretsPath:  homeDir + "/.secrets",
 		}
 
 		return m
@@ -140,6 +143,7 @@ func initialModel() model {
 				errMsg: err,
 			}
 		}
+
 		ti.Placeholder = "enter password"
 		ti.Focus()
 		ti.Width = lipgloss.Width(ti.Placeholder)

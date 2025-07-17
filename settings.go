@@ -18,14 +18,9 @@ import (
 // fullscreen
 
 type settingInp struct {
-	BordCol      textinput.Model
-	TextColor    textinput.Model
-	SecTextColor textinput.Model
-	Width        textinput.Model
-	Height       textinput.Model
-	cursor       int
-	currentConf  conf
-	inputs       []*textinput.Model
+	cursor      int
+	currentConf conf
+	inputs      [5]textinput.Model
 }
 type conf struct {
 	JournalHash  string  `json:"JournalHash"`
@@ -43,38 +38,34 @@ func (m model) settingsInit() (model, tea.Cmd) {
 		m.errMsg = err
 		return m, nil
 	}
-	//just to make my life easier
+
+	m.settings.inputs = [5]textinput.Model{}
 
 	m.settings.currentConf = existConf
 	m.settings.cursor = 0
-	m.settings.BordCol = textinput.New()
-	m.settings.BordCol.Placeholder = "current border color: " + existConf.BordCol
-	m.settings.TextColor = textinput.New()
-	m.settings.TextColor.Placeholder = "current text color: " + existConf.TextColor
-	m.settings.SecTextColor = textinput.New()
-	m.settings.SecTextColor.Placeholder = "current secondary text color: " + existConf.SecTextColor
-	m.settings.Width = textinput.New()
-	m.settings.Width.Placeholder = "current width % of terminal: " + strconv.FormatFloat(existConf.Width, byte(0), 4, 64)
-	m.settings.Height = textinput.New()
-	m.settings.Height.Placeholder = "current height % of terminal: " + strconv.FormatFloat(existConf.Height, byte(0), 4, 64)
+	m.settings.inputs[0] = textinput.New()
+	m.settings.inputs[0].Placeholder = "current border color: " + existConf.BordCol
+	m.settings.inputs[1] = textinput.New()
+	m.settings.inputs[1].Placeholder = "current text color: " + existConf.TextColor
+	m.settings.inputs[2] = textinput.New()
+	m.settings.inputs[2].Placeholder = "current secondary text color: " + existConf.SecTextColor
+	m.settings.inputs[3] = textinput.New()
+	m.settings.inputs[3].Placeholder = "current width % of terminal: " + strconv.FormatFloat(existConf.Width, byte(0), 4, 64)
+	m.settings.inputs[4] = textinput.New()
+	m.settings.inputs[4].Placeholder = "current height % of terminal: " + strconv.FormatFloat(existConf.Height, byte(0), 4, 64)
 
-	m.settings.BordCol.Focus()
-	m.settings.cursor = 0
-	m.settings.inputs = []*textinput.Model{
-		&m.settings.TextColor,
-		&m.settings.BordCol,
-		&m.settings.SecTextColor,
-		&m.settings.Width,
-		&m.settings.Height,
-	}
-	for _, val := range m.settings.inputs {
-		val.Width = lipgloss.Width(val.Placeholder)
+	m.settings.inputs[0].Focus()
+
+	//just to make my life easier
+
+	for i := range len(m.settings.inputs) {
+		m.settings.inputs[i].Width = lipgloss.Width(m.settings.inputs[i].Placeholder)
 	}
 
 	return m, nil
 }
 
-func (m *model) settingsUpdate(msg tea.Msg) (model, tea.Cmd) {
+func (m model) settingsUpdate(msg tea.Msg) (model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -94,17 +85,17 @@ func (m *model) settingsUpdate(msg tea.Msg) (model, tea.Cmd) {
 
 			}
 		case tea.KeyCtrlC:
-			float, _ := strconv.ParseFloat(m.settings.Width.Value(), 64)
-			height, err := strconv.ParseFloat(m.settings.Height.Value(), 64)
+			float, _ := strconv.ParseFloat(m.settings.inputs[4].Value(), 64)
+			height, err := strconv.ParseFloat(m.settings.inputs[3].Value(), 64)
 			if err != nil {
 				m.errMsg = err
-				return *m, nil
+				return m, nil
 			}
 			putInConfig(m.confPath, conf{
 				JournalHash:  m.pswdHash,
-				TextColor:    m.settings.TextColor.Value(),
-				BordCol:      m.settings.BordCol.Value(),
-				SecTextColor: m.settings.SecTextColor.Value(),
+				TextColor:    m.settings.inputs[0].Value(),
+				BordCol:      m.settings.inputs[1].Value(),
+				SecTextColor: m.settings.inputs[2].Value(),
 				Width:        float,
 				Height:       height,
 			})
@@ -112,15 +103,19 @@ func (m *model) settingsUpdate(msg tea.Msg) (model, tea.Cmd) {
 
 	}
 	var cmd tea.Cmd
-	*m.settings.inputs[m.settings.cursor], cmd = m.settings.inputs[m.settings.cursor].Update(msg)
 
-	return *m, cmd
+	m.settings.inputs[m.settings.cursor].Focus()
+	m.settings.inputs[m.settings.cursor], cmd = m.settings.inputs[m.settings.cursor].Update(msg)
+	//m.settings.Height.Focus()
+	//	m.settings.Height, cmd = m.settings.Height.Update(msg)
+	return m, cmd
 }
 
 func (m *model) settingsView() string {
-	var str string
+	str := "settings"
 	for _, val := range m.settings.inputs {
 		str = lipgloss.JoinVertical(lipgloss.Center, str, val.View())
 	}
 	return str
+
 }
