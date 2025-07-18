@@ -83,7 +83,7 @@ func (m model) listUpdate(msg tea.Msg) (model, tea.Cmd) {
 func (m *model) listView() string {
 	var s string
 	var sArr []string
-	sArr = append(sArr, "what would you like to do?")
+	sArr = append(sArr, m.styles.header.Render("what would you like to do?"))
 	for i, choice := range m.list.choices {
 
 		// Is the cursor pointing at this choice?

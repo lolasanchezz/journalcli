@@ -92,7 +92,7 @@ func (m model) pswdView() string {
 		m.pswdInput.pswdWrong = false
 		header = "Enter in password:"
 	}
-
+	header = m.styles.header.Render(header)
 	fin = lipgloss.JoinVertical(lipgloss.Center, header, m.pswdInput.ti.View())
 	return fin
 

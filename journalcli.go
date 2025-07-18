@@ -17,8 +17,6 @@ import (
 
 // constant for formatting time
 var timeFormat = "Mon Jan 2 3:04pm"
-var heightPerc = 0.5 //remove later!
-var widthPerc = 0.9  //remove later!
 
 // will take in a password and store the hash in a config file - if no such variable exists, offer to make a new one. the password will
 // be the key to decrypt the file with the journal entries. a password is only required to read the past entries, not current
@@ -71,6 +69,7 @@ type model struct {
 	//ui
 	width  int
 	height int
+
 	styles styles
 	//pswd reset
 	psRs pswdReset
@@ -143,16 +142,21 @@ func initialModel() model {
 				errMsg: err,
 			}
 		}
+		//set up the styling real QUICK
+
+		defStyles.root = defStyles.root.Foreground(lipgloss.Color(config.TextColor)).BorderForeground(lipgloss.Color(config.BordCol))
+		defStyles.header = defStyles.header.Foreground(lipgloss.Color(config.SecTextColor))
+		defStyles.filter = defStyles.filter.BorderForeground(lipgloss.Color(config.BordCol)).Foreground(lipgloss.Color(config.TextColor))
 
 		ti.Placeholder = "enter password"
 		ti.Focus()
 		ti.Width = lipgloss.Width(ti.Placeholder)
 		m := model{
 
-			pswdInput: pswdEnter{ti: ti, pswdSet: true, pswdEntered: false},
-			confPath:  confPath,
-			pswdHash:  config.JournalHash,
-
+			pswdInput:    pswdEnter{ti: ti, pswdSet: true, pswdEntered: false},
+			confPath:     confPath,
+			pswdHash:     config.JournalHash,
+			styles:       defStyles,
 			pswdUnhashed: "",
 
 			config:      config,
@@ -185,7 +189,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		rootStyle = rootStyle.Width(int(float64(msg.Width) * widthPerc)).Height(int(float64(msg.Height) * heightPerc))
+		m.styles.root = m.styles.root.Width(int(float64(msg.Width) * m.config.Width)).Height(int(float64(msg.Height) * m.config.Height))
 
 		return m, nil
 
@@ -234,7 +238,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	rootStyle := rootStyle.Width(m.width - 5).Height(m.height / 3)
+
 	//just some config stuff
 	if m.errMsg != nil {
 		return m.errMsg.Error()
@@ -246,32 +250,32 @@ func (m model) View() string {
 
 	//password is entered here -> time to get into the actual app!
 	if m.action == 0 {
-		return rootStyle.Render(m.pswdView())
+		return m.styles.root.Render(m.pswdView())
 	}
 	if m.action == 1 {
 
-		return rootStyle.Render(m.listView())
+		return m.styles.root.Render(m.listView())
 	}
 
 	if m.action == 2 {
-		return rootStyle.Render(m.writingView())
+		return m.styles.root.Render(m.writingView())
 	}
 
 	if m.action == 3 {
-		return rootStyle.Render(m.readView())
+		return m.styles.root.Render(m.readView())
 	}
 
 	//resetting password
 	if m.action == 4 {
-		return rootStyle.Render(m.psrsView())
+		return m.styles.root.Render(m.psrsView())
 	}
 
 	if m.action == 5 {
-		return rootStyle.Render(m.viewAggs())
+		return m.styles.root.Render(m.viewAggs())
 	}
 
 	if m.action == 6 {
-		return rootStyle.Render(m.settingsView())
+		return m.styles.root.Render(m.settingsView())
 	}
 
 	//never supposed to end up here
