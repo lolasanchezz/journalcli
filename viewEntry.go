@@ -24,7 +24,8 @@ func (m *model) setRow(row table.Row) {
 }
 
 func (m model) viewportInit() model {
-	m.tab.eView.viewPort = viewport.New(viewportStyle.GetWidth(), viewportStyle.GetHeight())
+
+	m.tab.eView.viewPort = viewport.New((m.width * int(m.config.Height)), (m.width * int(m.config.Height)))
 	//we can assume that data is already loaded in, as this functino shouldn't even be triggered if data isn't loaded into table
 	selEntry := m.tab.table.SelectedRow()
 
@@ -63,5 +64,5 @@ func (m *model) viewportView() string {
 		//}
 		m.tab.eView.viewPort.SetContent(selEntry[3])
 	}
-	return viewportStyle.Render(lipgloss.JoinVertical(lipgloss.Left, headerStyle.Render(m.tab.eView.header), m.tab.eView.viewPort.View()))
+	return m.styles.viewport.Render(lipgloss.JoinVertical(lipgloss.Left, headerStyle.Render(m.tab.eView.header), m.tab.eView.viewPort.View()))
 }

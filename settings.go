@@ -118,6 +118,7 @@ func (m model) settingsUpdate(msg tea.Msg) (model, tea.Cmd) {
 			m.settings.inputval = ""
 			m.styles.header = m.styles.header.Foreground(lipgloss.Color(m.settings.inputs[2].Value()))
 			m.styles.filter = m.styles.filter.BorderForeground(lipgloss.Color(m.settings.inputs[0].Value())).Foreground(lipgloss.Color(m.settings.inputs[1].Value()))
+
 			m.styles.root = m.styles.root.Foreground(lipgloss.Color(m.settings.inputs[1].Value())).BorderForeground(lipgloss.Color(m.settings.inputs[0].Value()))
 			newConf := conf{
 				JournalHash:  m.pswdHash,
