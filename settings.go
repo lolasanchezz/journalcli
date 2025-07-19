@@ -91,7 +91,7 @@ func (m model) settingsUpdate(msg tea.Msg) (model, tea.Cmd) {
 				m.settings.inputs[m.settings.cursor].Cursor.Focus()
 
 			}
-		case tea.KeyEnter:
+		case tea.KeyCtrlS:
 
 			width, err := strconv.ParseFloat(m.settings.inputs[3].Value(), 64)
 			if (err != nil) || (width > 1) {
@@ -114,12 +114,6 @@ func (m model) settingsUpdate(msg tea.Msg) (model, tea.Cmd) {
 					}
 				}
 			}
-
-			m.settings.inputval = ""
-			m.styles.header = m.styles.header.Foreground(lipgloss.Color(m.settings.inputs[2].Value()))
-			m.styles.filter = m.styles.filter.BorderForeground(lipgloss.Color(m.settings.inputs[0].Value())).Foreground(lipgloss.Color(m.settings.inputs[1].Value()))
-
-			m.styles.root = m.styles.root.Foreground(lipgloss.Color(m.settings.inputs[1].Value())).BorderForeground(lipgloss.Color(m.settings.inputs[0].Value()))
 			newConf := conf{
 				JournalHash:  m.pswdHash,
 				TextColor:    m.settings.inputs[1].Value(),
@@ -130,8 +124,21 @@ func (m model) settingsUpdate(msg tea.Msg) (model, tea.Cmd) {
 			}
 			putInConfig(m.confPath, newConf)
 			m.config = newConf
+
+			m.settings.inputval = ""
+			m.styles.header = m.styles.header.Foreground(lipgloss.Color(m.settings.inputs[2].Value()))
+			m.styles.filter = m.styles.filter.BorderForeground(lipgloss.Color(m.settings.inputs[0].Value())).Foreground(lipgloss.Color(m.settings.inputs[1].Value()))
+
+			m.styles.root = m.styles.root.Foreground(lipgloss.Color(m.settings.inputs[1].Value())).
+				BorderForeground(lipgloss.Color(m.settings.inputs[0].Value())).
+				Width(int(float64(m.width) * newConf.Width)).
+				Height(int(float64(m.height) * newConf.Height))
+
 			m.action = 1
 			m.settings.cursor = 0
+			if width == 1 && height == 1 {
+				return m, tea.EnterAltScreen
+			}
 			return m, nil
 		}
 

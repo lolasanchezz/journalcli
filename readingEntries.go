@@ -45,6 +45,7 @@ func (m *model) readView() string {
 		return lipgloss.JoinHorizontal(lipgloss.Top,
 			inlinePadding.Render(m.tab.table.View()),
 			inlinePadding.Render(m.searchView()))
+
 	}
 	if m.tab.maxViews == 3 {
 		tabWid := m.sizeTable(0.4)

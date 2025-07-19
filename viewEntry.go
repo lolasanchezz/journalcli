@@ -49,8 +49,6 @@ func (m *model) viewportUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) viewportView() string {
 
-	//cheap i know
-	//if m.tab.view != 1 {
 	selEntry := m.tab.table.SelectedRow()
 
 	if selEntry != nil {

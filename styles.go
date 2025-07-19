@@ -74,3 +74,14 @@ var (
 			Border(lipgloss.ThickBorder(), true, true).
 			Padding(1)
 )
+
+//just some helper funcs
+
+func (m *model) checkWidth(ws ...int) bool {
+	var totalW int
+	for _, val := range ws {
+		totalW += val
+	}
+	return totalW > m.styles.root.GetWidth()-3
+
+}

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -69,6 +70,7 @@ type model struct {
 	//ui
 	width  int
 	height int
+	help   help.Model
 
 	styles styles
 	//pswd reset
@@ -109,6 +111,7 @@ func initialModel() model {
 		ti.Focus()
 
 		m := model{
+			help:         help.New(),
 			confPath:     confPath,
 			pswdInput:    pswdEnter{ti: ti, pswdSet: false, pswdEntered: false},
 			pswdHash:     "",
@@ -152,7 +155,7 @@ func initialModel() model {
 		ti.Focus()
 		ti.Width = lipgloss.Width(ti.Placeholder)
 		m := model{
-
+			help:         help.New(),
 			pswdInput:    pswdEnter{ti: ti, pswdSet: true, pswdEntered: false},
 			confPath:     confPath,
 			pswdHash:     config.JournalHash,
@@ -172,7 +175,9 @@ func initialModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-
+	if (m.config.Width == 1) && (m.config.Height == 1) {
+		return tea.Batch(textinput.Blink, tea.EnterAltScreen)
+	}
 	return textinput.Blink
 }
 
@@ -189,8 +194,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.styles.root = m.styles.root.Width(int(float64(msg.Width) * m.config.Width)).Height(int(float64(msg.Height) * m.config.Height))
 
+		m.styles.root = m.styles.root.Width(int(float64(msg.Width)*m.config.Width - 2)).Height(int(float64(msg.Height)*m.config.Height - 2))
+		m.help.Width = int(float64(msg.Width)*m.config.Width) - 2
 		return m, nil
 
 	case tea.KeyMsg:
@@ -238,6 +244,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	var str string
 
 	//just some config stuff
 	if m.errMsg != nil {
@@ -249,37 +256,35 @@ func (m model) View() string {
 	//password segment!!!!!!!!!!!
 
 	//password is entered here -> time to get into the actual app!
-	if m.action == 0 {
-		return m.styles.root.Render(m.pswdView())
-	}
-	if m.action == 1 {
+	switch m.action {
+	case 0:
+		str = m.pswdView()
 
-		return m.styles.root.Render(m.listView())
-	}
+	case 1:
 
-	if m.action == 2 {
-		return m.styles.root.Render(m.writingView())
-	}
+		str = m.listView()
+	case 2:
+		str = m.writingView()
 
-	if m.action == 3 {
-		return m.styles.root.Render(m.readView())
-	}
+	case 3:
+		str = m.readView()
 
 	//resetting password
-	if m.action == 4 {
-		return m.styles.root.Render(m.psrsView())
+	case 4:
+		str = m.psrsView()
+
+	case 5:
+		str = m.viewAggs()
+
+	case 6:
+		str = m.settingsView()
+	default:
+		return ("something went wrong." + strconv.Itoa(m.action))
 	}
 
-	if m.action == 5 {
-		return m.styles.root.Render(m.viewAggs())
-	}
-
-	if m.action == 6 {
-		return m.styles.root.Render(m.settingsView())
-	}
-
+	return m.styles.root.Render(lipgloss.JoinVertical(lipgloss.Center, str, "\n", m.help.View(keys)))
 	//never supposed to end up here
-	return ("something went wrong." + strconv.Itoa(m.action))
+
 }
 
 ///flags!
