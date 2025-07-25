@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -64,7 +66,6 @@ var (
 			Padding()
 
 	headerStyle = lipgloss.NewStyle().
-			AlignHorizontal(lipgloss.Center).
 			Italic(true).
 			Bold(true)
 
@@ -84,4 +85,15 @@ func (m *model) checkWidth(ws ...int) bool {
 	}
 	return totalW > m.styles.root.GetWidth()-3
 
+}
+
+func (m *model) addHelp(str string) string {
+	maxHeight := float64(m.height) * m.config.Height
+	maxWidth := float64(m.width) * m.config.Width
+	m.help.Width = int(maxWidth)
+	lineNum := maxHeight - ((maxHeight / 2) + (float64(lipgloss.Height(str))) - 2)
+	if lineNum < 0 {
+		return str
+	}
+	return lipgloss.JoinVertical(lipgloss.Center, str, strings.Repeat("\n", int(lineNum)), m.help.View(keys))
 }

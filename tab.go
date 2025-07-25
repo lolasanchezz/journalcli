@@ -112,9 +112,14 @@ func (m model) tabUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "backspace":
-
+			if len(m.data.Entries) == 0 || m.tab.table.Cursor() > len(m.data.Entries) {
+				return m, nil
+			}
 			//first have to delete the tags from the unique map
 			row := m.tab.table.SelectedRow()
+			if len(row) < 2 {
+				return m, nil
+			}
 			tags := strings.Split(row[2], "")
 			if len(tags) > 0 {
 				for _, val := range tags {

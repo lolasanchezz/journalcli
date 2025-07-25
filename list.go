@@ -37,17 +37,17 @@ func (m model) listUpdate(msg tea.Msg) (model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyUp:
-			if m.action == 1 {
-				if m.list.cursor > 0 {
-					m.list.cursor--
-				}
+
+			if m.list.cursor > 0 {
+				m.list.cursor--
 			}
+
 		case tea.KeyDown:
-			if m.action == 1 {
-				if m.list.cursor < len(m.list.choices) {
-					m.list.cursor++
-				}
+
+			if m.list.cursor < len(m.list.choices)-1 {
+				m.list.cursor++
 			}
+
 		case tea.KeyEnter:
 			m.action = m.list.cursor + 2
 		}

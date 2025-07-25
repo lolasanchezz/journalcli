@@ -18,8 +18,8 @@ func (m *model) searchInit() tea.Cmd {
 	m.tab.daS.Placeholder = "search with date"
 
 	m.tab.tiS.Width = 20
-	m.tab.tagS.Width = searchBoxStyle.GetWidth()
-	m.tab.daS.Width = searchBoxStyle.GetWidth()
+	m.tab.tagS.Width = m.styles.filter.GetWidth()
+	m.tab.daS.Width = m.styles.filter.GetWidth()
 
 	return nil
 }
@@ -69,10 +69,10 @@ func (m *model) searchUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) searchView() string {
-	m.tab.tiS.Width = searchBoxStyle.GetWidth()
-	m.tab.tagS.Width = searchBoxStyle.GetWidth()
-	m.tab.daS.Width = searchBoxStyle.GetWidth()
-	return searchBoxStyle.Render(lipgloss.JoinVertical(lipgloss.Left,
+	m.tab.tiS.Width = m.styles.filter.GetWidth()
+	m.tab.tagS.Width = m.styles.filter.GetWidth()
+	m.tab.daS.Width = m.styles.filter.GetWidth()
+	return m.styles.filter.Render(lipgloss.JoinVertical(lipgloss.Left,
 		"search options",
 		m.tab.tiS.View(),
 		m.tab.daS.View(),

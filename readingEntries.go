@@ -41,22 +41,28 @@ func (m *model) readView() string {
 
 	if m.tab.maxViews == 2 {
 		m.sizeTable(0.5)
-		//return m.tab.table.View()
-		return lipgloss.JoinHorizontal(lipgloss.Top,
-			inlinePadding.Render(m.tab.table.View()),
-			inlinePadding.Render(m.searchView()))
+		m.tab.table.SetHeight(m.aHeight - 2)
 
+		//m.styles.filter = m.styles.filter.Width(m.aWidth/2 - 20)
+
+		//return m.tab.table.View()
+		return lipgloss.JoinHorizontal(lipgloss.Left,
+			m.tab.table.View(),
+			m.searchView(),
+		//	inlinePadding.Render(m.searchView())
+		)
 	}
 	if m.tab.maxViews == 3 {
-		tabWid := m.sizeTable(0.4)
-		searchBoxStyle = searchBoxStyle.Width(tabWid)
+		tabWid := m.sizeTable(0.4) //resizes width of columns
+		m.tab.table.SetHeight(m.aHeight/2 - 4)
+		m.styles.filter = m.styles.filter.Width(tabWid)
 
-		m.styles.viewport = m.styles.viewport.Width(tabWid)
 		//debug(m.tab.table.Width())
 		//return lipgloss.JoinVertical(lipgloss.Center, m.searchView(), inlinePadding.Render(m.tab.table.View()))
 		return lipgloss.JoinHorizontal(lipgloss.Left,
 			lipgloss.JoinVertical(lipgloss.Center, inlinePadding.Render(m.searchView()), inlinePadding.Render(m.tab.table.View())),
-			inlinePadding.Render(m.viewportView()))
+			//inlinePadding.Render
+			(m.viewportView()))
 
 	}
 	return ""
@@ -65,7 +71,12 @@ func (m *model) readView() string {
 func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
 
+		if m.tab.viewsEnabled[2] {
+			m.resizeViewport()
+
+		}
 	case dataLoadedIn:
 		m.tab.rows = msg.rows
 		m.tab.table.SetRows(msg.rows.rows)
@@ -74,9 +85,6 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.tab.table.SetHeight(msg.msgi)
 		}
 		m.tab.loading = false
-	case tea.WindowSizeMsg:
-
-		return m, nil
 
 	case tea.KeyMsg:
 
@@ -121,29 +129,16 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.entryView.tagInput.SetValue(row[2])
 				m.entryView.titleInput.SetValue(row[0])
 				m.entryView.body.SetValue(row[3])
-
+				viewportStyle = viewportStyle.BorderForeground(lipgloss.Color(m.config.BordCol))
+				searchBoxStyle = searchBoxStyle.UnsetBackground()
 				m.action = 2
 			}
 		}
-		viewportStyle = viewportStyle.BorderForeground(lipgloss.Color(m.config.BordCol))
-		//searchBoxStyle = searchBoxStyle.UnsetBackground()
-		m.tab.table.Blur()
-		if m.tab.view == 0 {
-			m.tab.table.Focus()
-
-		} else if m.tab.view == 1 {
-			//searchBoxStyle = searchBoxStyle.Background(lipgloss.Color(dark))
-		} else if m.tab.view == 2 {
-			viewportStyle = viewportStyle.BorderForeground(lipgloss.Color(m.config.SecTextColor))
-		}
 
 	} //otherwise, just pass onto helping functions
-
-	if m.tab.viewsEnabled[2] {
-		m.viewportUpdate(msg) //need to update this no matter what
-	}
-
-	if m.tab.view == 0 { //table open - always open!
+	//for showing which
+	if m.tab.view == 0 {
+		//table open - always open!
 		m.tab.tiS.Blur()
 		m.tab.daS.Blur()
 		m.tab.tagS.Blur()
@@ -151,11 +146,15 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.tabUpdate(msg)
 	}
 	if m.tab.view == 1 {
+
 		m.tab.table.Blur()
 		return m.searchUpdate(msg)
 	}
 	if m.tab.view == 2 {
-		return m.viewportUpdate(msg)
+		var cmd tea.Cmd
+		viewportStyle = viewportStyle.BorderForeground(lipgloss.Color(m.config.SecTextColor))
+		m.tab.eView.viewPort, cmd = m.tab.eView.viewPort.Update(msg)
+		return m, cmd
 	}
 
 	return m, nil
@@ -179,5 +178,6 @@ func (m *model) sizeTable(w float64) int {
 		cols[i].Width = int(colWidth)
 	}
 	m.tab.table.SetColumns(cols)
-	return int(usableWidth)
+	m.tab.table.SetHeight(m.aHeight)
+	return int(colWidth * float64(numCols))
 }

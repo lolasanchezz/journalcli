@@ -68,9 +68,11 @@ type model struct {
 	entryView writing
 
 	//ui
-	width  int
-	height int
-	help   help.Model
+	width   int
+	height  int
+	aWidth  int //actual width
+	aHeight int //actual height
+	help    help.Model
 
 	styles styles
 	//pswd reset
@@ -175,7 +177,8 @@ func initialModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	if (m.config.Width == 1) && (m.config.Height == 1) {
+	if m.config.Fullscreen {
+
 		return tea.Batch(textinput.Blink, tea.EnterAltScreen)
 	}
 	return textinput.Blink
@@ -194,10 +197,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-
-		m.styles.root = m.styles.root.Width(int(float64(msg.Width)*m.config.Width - 2)).Height(int(float64(msg.Height)*m.config.Height - 2))
-		m.help.Width = int(float64(msg.Width)*m.config.Width) - 2
-		return m, nil
+		if m.config.Fullscreen {
+			m.aWidth = msg.Width - 2
+			m.aHeight = msg.Height - 2
+		} else {
+			m.aWidth = int(float64(msg.Width) * m.config.Width)
+			m.aHeight = int(float64(msg.Height) * m.config.Height)
+		}
+		m.styles.root = m.styles.root.Width(m.aWidth).Height(m.aHeight)
+		m.help.Width = m.aWidth
 
 	case tea.KeyMsg:
 
@@ -282,7 +290,7 @@ func (m model) View() string {
 		return ("something went wrong." + strconv.Itoa(m.action))
 	}
 
-	return m.styles.root.Render(lipgloss.JoinVertical(lipgloss.Center, str, "\n", m.help.View(keys)))
+	return m.styles.root.Render(m.addHelp(str))
 	//never supposed to end up here
 
 }
@@ -291,7 +299,7 @@ func (m model) View() string {
 
 func main() {
 
-	p := tea.NewProgram(initialModel())
+	p := tea.NewProgram(initialModel(), tea.WithMouseCellMotion())
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
