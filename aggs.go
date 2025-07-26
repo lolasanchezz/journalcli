@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -15,6 +16,11 @@ var aggsBoxStyle = lipgloss.NewStyle().
 	AlignVertical(lipgloss.Center).
 	AlignHorizontal(lipgloss.Center)
 */
+
+type aggs struct {
+	content string
+}
+
 var header = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(lipgloss.Color("#ffffff"))
@@ -22,7 +28,7 @@ var header = lipgloss.NewStyle().
 var text = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("ffffff"))
 
-func (m *model) viewAggs() string {
+func (m *model) aggsInit() tea.Cmd {
 
 	if m.data.readIn == 0 {
 
@@ -30,14 +36,18 @@ func (m *model) viewAggs() string {
 		tmp, err := takeOutData(m.pswdUnhashed, m.secretsPath)
 		if err != nil {
 			m.errMsg = err
-			return ""
+			return nil
 		}
 		m.data = tmp
-		if tmp.readIn == 0 {
+		if tmp.readIn == 1 {
 			m.data.readIn = 1
-			return header.Render("no data yet!")
+			m.aggs.content = lipgloss.JoinVertical(lipgloss.Center, header.Render("no data yet!"), "get to writing!!")
 		}
 
+	}
+	if len(m.data.Entries) == 0 {
+		m.aggs.content = lipgloss.JoinVertical(lipgloss.Center, header.Render("no data yet!"), "get to writing!!")
+		return nil
 	}
 
 	allEntries := m.data.Entries
@@ -67,6 +77,11 @@ func (m *model) viewAggs() string {
 		text.Render("most used tag: "+strings.Join(popTag, ", ")),
 	)
 
-	return content
+	m.aggs.content = content
+	return nil
 
+}
+
+func (m *model) aggsView() string {
+	return m.aggs.content
 }

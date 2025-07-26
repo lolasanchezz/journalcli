@@ -35,7 +35,7 @@ func (m *model) writeInit() tea.Cmd {
 	m.entryView.tagInput.Width, m.entryView.titleInput.Width = lipgloss.Width("tags..."), lipgloss.Width(time.Now().Format(timeFormat))
 	//placeholders!
 	m.entryView.titleInput.Placeholder = time.Now().Format(timeFormat)
-	m.entryView.tagInput.Placeholder = "tags..."
+	m.entryView.tagInput.Placeholder = "tag tag tag"
 	//now also need to fetch tags from file. will use cmd for this
 
 	if m.data.readIn == 0 {
@@ -151,7 +151,9 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 							msg.data = tmp
 						}
 						msg.data = m.data
-						debug(msg)
+						if msg.data.Tags == nil {
+							msg.data.Tags = make(map[string]int)
+						}
 						//new part - load in json tags, seperate new tags by commas, see if there's any new ones not in json
 						//add those new ones to json, then take tags from entry and add them to the json entry!
 
@@ -242,7 +244,6 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.entryView.tagInput.Focus()
 		m.entryView.tagInput, cmd = m.entryView.tagInput.Update(msg)
-		m.entryView.tagInput.Width = lipgloss.Width(m.entryView.tagInput.Value())
 		return m, cmd
 	}
 

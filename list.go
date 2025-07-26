@@ -59,26 +59,25 @@ func (m model) listUpdate(msg tea.Msg) (model, tea.Cmd) {
 		m.list.spinner, spinnerCmd = m.list.spinner.Update(msg)
 		cmd = tea.Batch(cmd, spinnerCmd)
 	}
-	//setting up each model for when the action is clicked
-	if m.action == 2 { //writing a new entry!
+	switch m.action {
+	case 2: //writing a new entry!
 		return m, m.writeInit()
-	}
-	if m.action == 3 {
+	case 3:
 		return m, m.readInit()
-	}
-	if m.action == 4 {
+	case 4:
 		return m, m.psrsInit()
-	}
-	if m.action == 6 {
+	case 5:
+		return m, m.aggsInit()
+	case 6:
 		return m.settingsInit()
-	}
-	if m.action == 7 {
-		return m, tea.Quit
-	}
-	if m.action == 8 {
-		return m, m.eraseInit()
-	}
 
+	case 7:
+		return m, tea.Quit
+
+	case 8:
+		return m, m.eraseInit()
+
+	}
 	return m, cmd
 
 }

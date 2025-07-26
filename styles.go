@@ -14,6 +14,7 @@ var defaultStyles = conf{
 	SecTextColor: "#d26323ff",
 	Width:        0.9,
 	Height:       0.5,
+	Fullscreen:   true,
 }
 
 type styles struct {
@@ -90,10 +91,9 @@ func (m *model) checkWidth(ws ...int) bool {
 }
 
 func (m *model) addHelp(str string) string {
-	maxHeight := float64(m.height) * m.config.Height
-	maxWidth := float64(m.width) * m.config.Width
-	m.help.Width = int(maxWidth)
-	lineNum := maxHeight - ((maxHeight / 2) + (float64(lipgloss.Height(str))) - 2)
+
+	m.help.Width = m.aWidth - 2
+	lineNum := m.aHeight - ((m.aHeight / 2) + lipgloss.Height(str)) - 2
 	if lineNum < 0 {
 		return str
 	}

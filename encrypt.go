@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"log"
 	"os"
 
@@ -128,7 +127,7 @@ func takeOutData(password string, path string) (jsonEntries, error) {
 
 	newData, err := os.ReadFile(path)
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
+		if os.IsNotExist(err) {
 			return jsonEntries{readIn: 1, Tags: make(map[string]int)}, nil
 		}
 		debug(err)
@@ -138,6 +137,9 @@ func takeOutData(password string, path string) (jsonEntries, error) {
 	decData, err := Decrypt([]byte(password), newData)
 	if err != nil {
 		log.Fatal(err)
+	}
+	if decData.Tags == nil {
+		decData.Tags = make(map[string]int)
 	}
 	decData.readIn = 1 //read in successfully
 

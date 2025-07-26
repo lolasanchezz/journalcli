@@ -83,6 +83,9 @@ type model struct {
 
 	//destroy everything!!
 	erase erase
+
+	//aggsss
+	aggs aggs
 }
 type loading bool
 
@@ -283,7 +286,7 @@ func (m model) View() string {
 		str = m.psrsView()
 
 	case 5:
-		str = m.viewAggs()
+		str = m.aggsView()
 
 	case 6:
 		str = m.settingsView()

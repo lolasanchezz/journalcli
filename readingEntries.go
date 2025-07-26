@@ -50,15 +50,16 @@ func (m *model) readView() string {
 	}
 	if m.tab.maxViews == 3 {
 		tabWid := m.sizeTable(0.4) //resizes width of columns
-		m.tab.table.SetHeight(m.aHeight/2 - 4)
+
 		m.styles.filter = m.styles.filter.Width(tabWid)
+		//setting help manunually because i want it to be left aligned
 
 		//debug(m.tab.table.Width())
 		//return lipgloss.JoinVertical(lipgloss.Center, m.searchView(), inlinePadding.Render(m.tab.table.View()))
 		return lipgloss.JoinHorizontal(lipgloss.Left,
-			lipgloss.JoinVertical(lipgloss.Center, inlinePadding.Render(m.searchView()), inlinePadding.Render(m.tab.table.View())),
+			lipgloss.JoinVertical(lipgloss.Center, m.searchView(), m.tab.table.View()),
 
-			(m.viewportView()))
+			m.viewportView())
 
 	}
 	return ""
