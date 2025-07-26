@@ -126,11 +126,14 @@ func (m model) settingsUpdate(msg tea.Msg) (model, tea.Cmd) {
 
 			if fs {
 				cmd = tea.EnterAltScreen
-				m.aHeight = m.width - 2
+				m.aHeight = m.height - 2
 				m.aWidth = m.width - 2
 
 			} else {
 				cmd = tea.ExitAltScreen
+				m.aHeight = int(float64(m.height) * (height))
+				m.aWidth = int(float64(m.width) * (width))
+
 			}
 			newConf := conf{
 				JournalHash:  m.pswdHash,
@@ -153,8 +156,8 @@ func (m model) settingsUpdate(msg tea.Msg) (model, tea.Cmd) {
 			m.styles.filter = m.styles.filter.BorderForeground(lipgloss.Color(m.settings.inputs[0].Value())).Foreground(lipgloss.Color(m.settings.inputs[1].Value()))
 			m.styles.root = m.styles.root.Foreground(lipgloss.Color(m.settings.inputs[1].Value())).
 				BorderForeground(lipgloss.Color(m.settings.inputs[0].Value())).
-				Width(int(float64(m.width) * newConf.Width)).
-				Height(int(float64(m.height) * newConf.Height))
+				Width(m.aWidth).
+				Height(m.aHeight)
 
 			return m, cmd
 		}
