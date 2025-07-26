@@ -34,8 +34,8 @@ func (m model) pswdUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.pswdHash = hash
 
 				//now putting that into the file
-
-				err = putInConfig(m.confPath, conf{JournalHash: hash})
+				m.config.JournalHash = hash
+				err = putInConfig(m.confPath, m.config)
 				if err != nil {
 					m.errMsg = err
 					debug(err)
@@ -46,8 +46,9 @@ func (m model) pswdUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.pswdInput.ti.Reset()
 				m.pswdInput.ti.Focus()
 				first.Reset()
-				m.listInit()
+
 				m.action = 1
+				return m.listInit()
 			} else {
 				hash, err := hash(m.pswdInput.ti.Value())
 				if err != nil {

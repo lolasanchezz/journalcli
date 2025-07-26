@@ -80,6 +80,9 @@ type model struct {
 
 	//settings
 	settings settingInp
+
+	//destroy everything!!
+	erase erase
 }
 type loading bool
 
@@ -219,35 +222,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.action = 1
 		}
 	}
-
+	switch m.action {
 	//if no special cases, -> just pass off to helper update functions
-	if m.action == 0 {
+	case 0:
 		return m.pswdUpdate(msg)
-	}
-	if m.action == 1 {
+
+	case 1:
 		return m.listUpdate(msg)
-	}
 
-	if m.action == 2 {
+	case 2:
 		return m.writingUpdate(msg)
-	}
 
-	if m.action == 3 {
+	case 3:
 		return m.readUpdate(msg)
 
-	}
-
-	if m.action == 4 {
+	case 4:
 		return m.psrsUpdate(msg)
-	}
 
-	if m.action == 6 {
+	case 6:
 		return m.settingsUpdate(msg)
-	}
-	if m.action == 7 {
-		return m, tea.Quit
-	}
 
+	case 7:
+		return m, tea.Quit
+
+	case 8:
+		return m.eraseUpdate(msg)
+
+	}
 	return m, cmd
 }
 
@@ -286,6 +287,8 @@ func (m model) View() string {
 
 	case 6:
 		str = m.settingsView()
+	case 8:
+		str = m.eraseView()
 	default:
 		return ("something went wrong." + strconv.Itoa(m.action))
 	}

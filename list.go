@@ -13,7 +13,7 @@ type picking struct {
 }
 
 func (m model) listInit() (model, tea.Cmd) {
-	m.list.choices = []string{"write entries", "read entries", "change password", "look at analytics", "settings", "logout"}
+	m.list.choices = []string{"write entries", "read entries", "change password", "look at analytics", "settings", "logout", "destroy everything"}
 
 	m.list.cursor = 0
 	s := spinner.New()
@@ -74,6 +74,9 @@ func (m model) listUpdate(msg tea.Msg) (model, tea.Cmd) {
 	}
 	if m.action == 7 {
 		return m, tea.Quit
+	}
+	if m.action == 8 {
+		return m, m.eraseInit()
 	}
 
 	return m, cmd
