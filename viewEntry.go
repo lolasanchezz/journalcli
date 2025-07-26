@@ -1,7 +1,7 @@
 package main
 
 import (
-	"math"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -24,18 +24,9 @@ func (m *model) setRow(row table.Row) {
 	//splitting the content by line breaks
 	var finalStr string
 	if len(row[3]) < m.aWidth/2 {
-		finalStr = row[3]
+		finalStr = " " + row[3]
 	} else {
-		realW := m.aWidth / 2
-		for i := range int(math.Ceil(float64(len(row[3])) / (float64(realW)))) {
-			if realW*(i+1) > len(row[3]) {
-				finalStr += row[3][realW*i:]
-				break
-			}
-			finalStr += row[3][realW*i : realW*(i+1)]
-			finalStr += "\n"
-		}
-
+		finalStr = fitLinesLipgloss(row[3], m.aWidth/2-2)
 	}
 	m.tab.eView.viewPort.SetContent(finalStr)
 }
@@ -55,27 +46,88 @@ func (m model) viewportInit() model {
 }
 
 func (m *model) viewportView() string {
+	/*
+		selEntry := m.tab.table.SelectedRow()
 
-	selEntry := m.tab.table.SelectedRow()
+		if selEntry != nil {
 
-	if selEntry != nil {
+			if len(selEntry) == 0 {
+				m.tab.eView.viewPort.SetContent("")
+			} else {
+				m.setRow(selEntry)
+			}
 
-		if len(selEntry) == 0 {
-			m.tab.eView.viewPort.SetContent("")
-		} else {
-			m.setRow(selEntry)
 		}
+	*/
+	return m.styles.viewport.Render(lipgloss.JoinVertical(lipgloss.Center, headerStyle.Render(m.tab.eView.header), "\n",
+		m.tab.eView.viewPort.View()))
+}
 
+func (m *model) updateViewportCont() {
+	if !m.tab.loading {
+		selEntry := m.tab.table.SelectedRow()
+
+		if selEntry != nil {
+
+			if len(selEntry) == 0 {
+				m.tab.eView.viewPort.SetContent("")
+			} else {
+				m.setRow(selEntry)
+			}
+
+		}
 	}
-	return m.styles.viewport.Render(lipgloss.JoinVertical(lipgloss.Left, headerStyle.Render(m.tab.eView.header), m.tab.eView.viewPort.View()))
 }
 
 func (m *model) resizeViewport() {
-	width := m.aWidth / 2
+	width := m.aWidth/2 - 4
 	height := m.aHeight - 6
 
 	m.styles.viewport = m.styles.viewport.Width(width).Height(height)
 	m.tab.eView.viewPort.Width = width
 	m.tab.eView.viewPort.Height = height
+
+}
+
+func fitLines(body string, w int) string {
+	padding := " "
+	var finalStr string
+	firstspace := ""
+	secondspace := ""
+	mod := 0
+	pmod := 0
+
+	for i := range int((len(body)) / (w)) {
+		firstspace = ""
+		secondspace = ""
+		pmod = mod
+		mod = 2
+		if body[w*i] != ' ' {
+			firstspace = padding
+			mod--
+		}
+
+		if w*(i+1) >= len(body) {
+			finalStr += firstspace + body[w*i:]
+			break // we're done
+		}
+		if body[w*(i+1)] != ' ' {
+			secondspace = padding
+			mod--
+		}
+		if strings.Contains(body[w*i:w*i+1], "\n") {
+			finalStr += body[w*i:]
+			//line is already broken no need to format it
+		} else {
+
+			finalStr += firstspace + body[w*i+pmod:w*(i+1)+mod] + secondspace + " \n"
+		}
+
+	}
+	return finalStr
+}
+
+func fitLinesLipgloss(body string, w int) string {
+	return lipgloss.NewStyle().Width(w).Padding(0, 1).AlignHorizontal(lipgloss.Left).Render(body)
 
 }

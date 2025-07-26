@@ -181,7 +181,7 @@ func (m model) writingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if m.entryView.entryId != 0 {
 							oldEntry := m.entryView.existEntry
 							if titleStr != "" {
-								oldEntry.Title = m.entryView.titleInput.Value()
+								oldEntry.Title = titleStr
 							} else {
 								oldEntry.Title = "edit on" + time.Now().Format(timeFormat)
 							}

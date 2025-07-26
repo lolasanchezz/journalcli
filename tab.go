@@ -39,15 +39,17 @@ func (m *model) tabInit() tea.Cmd {
 
 	// Set table styles
 	s := table.DefaultStyles()
+
 	s.Header = s.Header.
 		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
+		BorderForeground(lipgloss.Color(m.config.BordCol)).
 		BorderBottom(true).
 		Bold(false)
 	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
+		Foreground(lipgloss.Color(m.config.TextColor)).
+		Background(lipgloss.Color(m.config.SecTextColor)).
 		Bold(false)
+	m.styles.table = s
 	m.tab.table.SetStyles(s)
 	m.tab.loading = true
 	// Batch loading state + actual data load
@@ -103,7 +105,7 @@ func (m *model) tabInit() tea.Cmd {
 	)
 }
 
-func (m model) tabUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *model) tabUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 	// default for now

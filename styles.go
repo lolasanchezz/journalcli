@@ -1,8 +1,10 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -19,6 +21,7 @@ type styles struct {
 	viewport lipgloss.Style
 	header   lipgloss.Style
 	filter   lipgloss.Style
+	table    table.Styles
 }
 
 func (m *model) setStyles(new conf) {
@@ -62,8 +65,7 @@ var (
 			BorderStyle(lineBorder).
 			Foreground(lipgloss.Color(light)).
 			AlignHorizontal(lipgloss.Center).
-			AlignVertical(lipgloss.Center).
-			Padding()
+			AlignVertical(lipgloss.Center)
 
 	headerStyle = lipgloss.NewStyle().
 			Italic(true).
@@ -73,10 +75,10 @@ var (
 			Foreground(lipgloss.Color(light)).
 			AlignHorizontal(lipgloss.Left).
 			Border(lipgloss.ThickBorder(), true, true).
-			Padding(1)
-)
+			Padding(2)
 
-//just some helper funcs
+	tabStyle = table.DefaultStyles()
+)
 
 func (m *model) checkWidth(ws ...int) bool {
 	var totalW int
@@ -96,4 +98,16 @@ func (m *model) addHelp(str string) string {
 		return str
 	}
 	return lipgloss.JoinVertical(lipgloss.Center, str, strings.Repeat("\n", int(lineNum)), m.help.View(keys))
+}
+
+func changeRgb(hex string, light int) string {
+
+	r := hex[1:3]
+	g := hex[3:5]
+	b := hex[5:7]
+	newR, _ := strconv.ParseInt(r, 16, 32)
+	newG, _ := strconv.ParseInt(g, 16, 32)
+	newB, _ := strconv.ParseInt(b, 16, 32)
+	return "#" + strconv.Itoa(int(newR)+light) + strconv.Itoa(int(newG)+light) + strconv.Itoa(int(newB)+light)
+
 }

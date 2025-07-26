@@ -41,15 +41,11 @@ func (m *model) readView() string {
 
 	if m.tab.maxViews == 2 {
 		m.sizeTable(0.5)
-		m.tab.table.SetHeight(m.aHeight - 2)
-
-		//m.styles.filter = m.styles.filter.Width(m.aWidth/2 - 20)
 
 		//return m.tab.table.View()
-		return lipgloss.JoinHorizontal(lipgloss.Left,
+		return lipgloss.JoinHorizontal(lipgloss.Center,
 			m.tab.table.View(),
 			m.searchView(),
-		//	inlinePadding.Render(m.searchView())
 		)
 	}
 	if m.tab.maxViews == 3 {
@@ -61,7 +57,7 @@ func (m *model) readView() string {
 		//return lipgloss.JoinVertical(lipgloss.Center, m.searchView(), inlinePadding.Render(m.tab.table.View()))
 		return lipgloss.JoinHorizontal(lipgloss.Left,
 			lipgloss.JoinVertical(lipgloss.Center, inlinePadding.Render(m.searchView()), inlinePadding.Render(m.tab.table.View())),
-			//inlinePadding.Render
+
 			(m.viewportView()))
 
 	}
@@ -137,27 +133,40 @@ func (m *model) readUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	} //otherwise, just pass onto helping functions
 	//for showing which
+	var cmd tea.Cmd
 	if m.tab.view == 0 {
 		//table open - always open!
 		m.tab.tiS.Blur()
 		m.tab.daS.Blur()
 		m.tab.tagS.Blur()
-		m.tab.table.Focus()
-		return m.tabUpdate(msg)
+
+		m.styles.table.Selected = m.styles.table.Selected.Background(lipgloss.Color(m.config.SecTextColor))
+		m.styles.viewport = m.styles.viewport.Foreground(lipgloss.Color(m.config.SecTextColor))
+
+		//have to update viewport
+		m.tabUpdate(msg)
+		m.updateViewportCont()
+
 	}
 	if m.tab.view == 1 {
-
-		m.tab.table.Blur()
+		m.styles.viewport = m.styles.viewport.Foreground(lipgloss.Color(m.config.SecTextColor))
+		m.updateViewportCont()
+		//blur table
+		m.styles.table.Selected = m.styles.table.Selected.Background(lipgloss.Color(changeRgb(m.config.SecTextColor, 20)))
 		return m.searchUpdate(msg)
 	}
 	if m.tab.view == 2 {
-		var cmd tea.Cmd
-		viewportStyle = viewportStyle.BorderForeground(lipgloss.Color(m.config.SecTextColor))
+		m.tab.tiS.Blur()
+		m.tab.daS.Blur()
+		m.tab.tagS.Blur()
+		m.styles.table.Selected = m.styles.table.Selected.Background(lipgloss.Color(changeRgb(m.config.SecTextColor, 20)))
+
+		m.styles.viewport = m.styles.viewport.Foreground(lipgloss.Color(m.config.TextColor))
 		m.tab.eView.viewPort, cmd = m.tab.eView.viewPort.Update(msg)
-		return m, cmd
+
 	}
 
-	return m, nil
+	return m, cmd
 }
 
 func (m *model) sizeTable(w float64) int {
@@ -178,6 +187,13 @@ func (m *model) sizeTable(w float64) int {
 		cols[i].Width = int(colWidth)
 	}
 	m.tab.table.SetColumns(cols)
-	m.tab.table.SetHeight(m.aHeight)
+	//just guessing here and saying that height of table is # columns plus 4
+	if (4 + len(m.tab.table.Rows())) > m.aHeight-6 {
+		m.tab.table.SetHeight(m.aHeight - 5) //-5 for help
+	} else {
+		m.tab.table.SetHeight(4 + len(m.tab.table.Rows()))
+	}
+
+	m.tab.table.SetStyles(m.styles.table)
 	return int(colWidth * float64(numCols))
 }

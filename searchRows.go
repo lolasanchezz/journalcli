@@ -69,9 +69,9 @@ func (m *model) searchUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) searchView() string {
-	m.tab.tiS.Width = m.styles.filter.GetWidth()
-	m.tab.tagS.Width = m.styles.filter.GetWidth()
-	m.tab.daS.Width = m.styles.filter.GetWidth()
+	m.tab.tiS.Width = 20
+	m.tab.tagS.Width = 20 //never really has to resize no reason to become bigger or smaller
+	m.tab.daS.Width = 20
 	return m.styles.filter.Render(lipgloss.JoinVertical(lipgloss.Left,
 		"search options",
 		m.tab.tiS.View(),
