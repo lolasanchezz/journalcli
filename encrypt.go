@@ -193,7 +193,12 @@ func putInConfig(path string, conf conf) error {
 		return err
 	}
 	err = os.WriteFile(path, data, os.FileMode(os.O_RDWR))
-	if err != nil {
+	if os.IsNotExist(err) {
+		os.Create(path)
+		os.WriteFile(path, data, os.FileMode(os.O_RDWR))
+
+	} else {
+
 		return err
 	}
 	return nil

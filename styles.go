@@ -10,8 +10,8 @@ import (
 
 var defaultStyles = conf{
 	TextColor:    "#F4DBCC",
-	BordCol:      "#70391",
-	SecTextColor: "#d26323ff",
+	BordCol:      "#703941",
+	SecTextColor: "#502106",
 	Width:        0.9,
 	Height:       0.5,
 	Fullscreen:   true,

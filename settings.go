@@ -111,11 +111,12 @@ func (m model) settingsUpdate(msg tea.Msg) (model, tea.Cmd) {
 				if len(m.settings.inputs[i].Value()) == 0 {
 					m.settings.inputs[i].SetValue(m.settings.inputs[i].Placeholder)
 				}
-				if i < 3 {
-					if rune(m.settings.inputs[i].Value()[0]) != '#' || len(m.settings.inputs[i].Value()) != 7 {
-						m.settings.inputval = "invalid rgb color"
-						return m, nil
-					}
+			}
+			for i := range 3 {
+
+				if rune(m.settings.inputs[i].Value()[0]) != '#' || len(m.settings.inputs[i].Value()) != 7 {
+					m.settings.inputval = "invalid rgb color"
+					return m, nil
 				}
 			}
 

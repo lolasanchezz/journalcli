@@ -113,7 +113,6 @@ func initialModel() model {
 
 	if errors.Is(err, os.ErrNotExist) { //if file doesn't exist, we know there's no password, so just setting up user to enter their new password
 
-		os.Create(confPath)
 		ti.Placeholder = "enter new password"
 		ti.Width = lipgloss.Width(ti.Placeholder)
 		ti.Focus()
@@ -222,7 +221,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		case tea.KeyEsc:
-			m.action = 1
+			if !(m.action == 0 || m.action == 7) {
+				m.action = 1
+			}
 		}
 	}
 	switch m.action {
