@@ -1,7 +1,7 @@
 ## journal cli
 ### a little cli that records journals and provides nice views of past journals
 
-![demo]("final.gif)
+![demo](./final.gif)
 
 ## features
 
