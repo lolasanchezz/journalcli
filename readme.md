@@ -1,38 +1,30 @@
 ## journal cli
 ### a little cli that records journals and provides nice views of past journals
 
-features and todo lists
-- encryption
-    - [x] encrypt and decrypt entries
+![demo]("final.gif)
 
-- writing entries
-    - [x] multiline place to write
-    - [x] option for title - if none provided, just use date
-    - [x] tagging
-    - [ ] option to throw in different media
-- viewing entries
-    - [x] be able to load in past entry to edit
-    - [x] be able to search through entries based on tags | date
+## features
 
-- misc.
-    - [ ] be able to change text color, 
-    - [ ] have a default program size (!!)
-    - [ ] implement loading once io is in cmds
-    - [ ] add in a bunch of different styles
+### writing entries
+- [x] multiline input
+- [x] tagging
+- [x] date control
+- [x] editing
 
-- non-ui
-    - [ ] organize encryption tasks into bubble tea cmds
-    - [ ] make modules more cleanly nested - seperate different actions
-    - [ ] make sure data is stored in memory when unencrypted AND whenever changed. as little decrypting as possible
+### reading entries
+- [x] filter by date, tag, or name
+- [x] scrolling viewport
 
-## bugs
-- [ ] readui doesn't store data away and reload it from memory once viewed for a second time
-- [ ] readui doesn't support multiple tags..
+### security
+- [x] password hashing and symmetric key encryption
+- [x] blow up button
+- [x] unencrypted data only ever stored in memory
+- [x] changeable password
 
+### gui
+- [x] resizes, can take up different % of terminal or go fullscreen
+- [x] customizable colors
+- [x] supports mouse interaction
 
-### small things
-- [ ] add a 'date last modified' option
-- [ ] get rid of secondary 'hidden data' struct in rowsData struct
-- [ ] add a "are you sure you want to delete?" in table
-- [ ] add a pointer to each json entry in the tab data
-- [ ] add a maxwidth function to size the columns of the table to the biggest text line in there
+### extras
+- [x] analytics!
