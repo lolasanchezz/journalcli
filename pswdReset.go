@@ -47,8 +47,9 @@ func (m model) psrsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.errMsg = err
 				return m, nil
 			}
-			conf := conf{JournalHash: newHash}
-			err = putInConfig(m.confPath, conf)
+
+			m.config.JournalHash = newHash
+			err = putInConfig(m.confPath, m.config)
 			if err != nil {
 				m.errMsg = err
 				return m, nil
